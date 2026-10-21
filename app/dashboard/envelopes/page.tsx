@@ -3,6 +3,106 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import DeleteButton from '../components/DeleteButton';
+import {
+  Mail,
+  Wand2,
+  Loader2,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+  Home,
+  Utensils,
+  Zap,
+  Car,
+  Film,
+  CreditCard,
+  ShoppingBag,
+  Package,
+  Folder,
+  type LucideIcon,
+} from 'lucide-react';
+
+function getCategoryIcon(name: string, icon?: string): LucideIcon {
+  const n = (name || '').toLowerCase().replace(/_/g, ' ');
+  const i = (icon || '').toLowerCase().trim();
+  if (
+    n.includes('card') ||
+    n.includes('credit') ||
+    n.includes('debt') ||
+    n.includes('loan') ||
+    i === '\u{1F4B8}' ||
+    i === 'credit_card'
+  ) {
+    return CreditCard;
+  }
+  if (
+    n.includes('shop') ||
+    n.includes('store') ||
+    n.includes('cart') ||
+    i === '\u{1F6D2}' ||
+    i === 'shopping_cart'
+  ) {
+    return ShoppingBag;
+  }
+  if (
+    /\bcar\b/.test(n) ||
+    n.includes('auto') ||
+    n.includes('gas') ||
+    n.includes('transit') ||
+    n.includes('transport') ||
+    i === '\u{1F697}' ||
+    i === 'directions_car'
+  ) {
+    return Car;
+  }
+  if (
+    n.includes('hous') ||
+    n.includes('rent') ||
+    n.includes('home') ||
+    i === '\u{1F3E0}' ||
+    i === 'home'
+  ) {
+    return Home;
+  }
+  if (
+    n.includes('food') ||
+    n.includes('groc') ||
+    n.includes('dining') ||
+    i === '\u{1F354}' ||
+    i === 'restaurant'
+  ) {
+    return Utensils;
+  }
+  if (
+    n.includes('util') ||
+    n.includes('power') ||
+    n.includes('elect') ||
+    i === '\u{26A1}' ||
+    i === 'bolt'
+  ) {
+    return Zap;
+  }
+  if (
+    n.includes('subscript') ||
+    n.includes('stream') ||
+    n.includes('movie') ||
+    n.includes('entertain') ||
+    i === '\u{1F504}' ||
+    i === 'subscriptions' ||
+    i === '\u{1F3AC}' ||
+    i === 'movie'
+  ) {
+    return Film;
+  }
+  if (
+    n.includes('other') ||
+    i === '\u{1F4E6}' ||
+    i === 'inventory_2'
+  ) {
+    return Package;
+  }
+  return Folder;
+}
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -142,9 +242,13 @@ export default function Envelopes() {
     <div className="fade-in">
       <div className="page-header">
         <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 8 }}>
-            mail
-          </span>{' '}
+          <Mail
+            size={20}
+            strokeWidth={2.0}
+            aria-hidden="true"
+            focusable="false"
+            style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+          />{' '}
           Envelope Budgeting
         </h2>
         <p>Dave Ramsey method — set aside money for specific purposes</p>
@@ -162,8 +266,10 @@ export default function Envelopes() {
               setMonth(month - 1);
             }
           }}
+          aria-label="Previous month"
         >
-          ← Prev
+          <ChevronLeft size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+          <span>Prev</span>
         </button>
         <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
           {monthNames[month - 1]} {year}
@@ -178,8 +284,10 @@ export default function Envelopes() {
               setMonth(month + 1);
             }
           }}
+          aria-label="Next month"
         >
-          Next →
+          <span>Next</span>
+          <ChevronRight size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
         </button>
       </div>
 
@@ -187,22 +295,30 @@ export default function Envelopes() {
       {smartResult && (
         <div
           className="alert alert-info section"
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'space-between', alignItems: 'center' }}
         >
           <span style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              auto_awesome
-            </span>{' '}
+            <Wand2
+              size={16}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 6, color: 'var(--as-accent-primary)' }}
+            />{' '}
             Created <strong>{smartResult.created?.length || 0}</strong> envelope
             {smartResult.created?.length !== 1 ? 's' : ''} from your recurring expenses
             {smartResult.skipped > 0 && (
-              <span style={{ color: 'var(--text-muted)' }}>
+              <span style={{ color: 'var(--as-text-muted)' }}>
                 {' '}
                 · {smartResult.skipped} skipped (already exist)
               </span>
             )}
           </span>
-          <button className="btn btn-secondary btn-small" onClick={() => setSmartResult(null)}>
+          <button
+            className="btn btn-secondary btn-small"
+            onClick={() => setSmartResult(null)}
+            aria-label="Dismiss smart envelope results"
+          >
             Dismiss
           </button>
         </div>
@@ -224,30 +340,37 @@ export default function Envelopes() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 10, marginBottom: 16 }}>
         <button
           className="btn btn-secondary"
           onClick={handleSmartEnvelope}
           disabled={generating}
           style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          aria-label="Generate smart envelopes from recurring expenses"
         >
           {generating ? (
             <>
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em' }}>
-                hourglass_empty
-              </span>{' '}
+              <Loader2
+                size={16}
+                strokeWidth={2.0}
+                className="animate-spin"
+                aria-hidden="true"
+                focusable="false"
+              />{' '}
               Generating...
             </>
           ) : (
             <>
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em' }}>
-                auto_awesome
-              </span>{' '}
+              <Wand2 size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />{' '}
               Smart Envelope
             </>
           )}
         </button>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button
+          className="btn btn-primary"
+          onClick={() => setShowModal(true)}
+          aria-label="Create new envelope"
+        >
           + New Envelope
         </button>
       </div>
@@ -256,23 +379,28 @@ export default function Envelopes() {
         <div className="card">
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                mail
-              </span>
+              <Mail
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)' }}
+              />
             </div>
-            <h3>No envelopes for {monthNames[month - 1]}</h3>
+            <h3>Zero envelopes for {monthNames[month - 1]}.</h3>
             <p>
               Create envelopes manually or use{' '}
               <strong>
-                <span
-                  className="material-symbols-rounded"
-                  style={{ fontSize: '1.2em', verticalAlign: '-3px' }}
-                >
-                  auto_awesome
-                </span>{' '}
+                <Wand2
+                  size={14}
+                  strokeWidth={2.0}
+                  aria-hidden="true"
+                  focusable="false"
+                  style={{ verticalAlign: '-2px', marginRight: 4, color: 'var(--as-accent-primary)' }}
+                />
                 Smart Envelope
               </strong>{' '}
-              to auto-generate from your expenses.
+              to generate envelopes from recurring expenses.
             </p>
           </div>
         </div>
@@ -292,41 +420,54 @@ export default function Envelopes() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
                     <div className="envelope-name">{env.name}</div>
-                    {cat && (
-                      <span
-                        className="badge"
-                        style={{
-                          background: cat.color + '20',
-                          color: cat.color,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          marginTop: 4,
-                        }}
-                      >
+                    {cat && (() => {
+                      const IconComp = getCategoryIcon(cat.name, cat.icon);
+                      return (
                         <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: '1em', marginRight: 4 }}
+                          className="badge"
+                          style={{
+                            background: 'var(--as-bg-elevated)',
+                            border: '1px solid var(--as-border-subtle)',
+                            color: 'var(--as-text-primary)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            padding: '3px 8px',
+                            borderRadius: 'var(--as-radius-pill)',
+                            fontSize: '0.75rem',
+                            marginTop: 4,
+                          }}
                         >
-                          {cat.icon}
-                        </span>{' '}
-                        {cat.name}
-                      </span>
-                    )}
+                          <IconComp
+                            size={13}
+                            strokeWidth={2.0}
+                            aria-hidden="true"
+                            focusable="false"
+                            style={{ color: 'var(--as-accent-primary)' }}
+                          />
+                          <span>{cat.name}</span>
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button
                       className="btn btn-primary btn-small"
                       onClick={() => setShowSpendModal(env.id)}
+                      aria-label={`Log spending for ${env.name}`}
                     >
                       + Spend
                     </button>
-                    <DeleteButton onDelete={() => deleteEnvelopeItem(env.id)} label="×" />
+                    <DeleteButton
+                      onDelete={() => deleteEnvelopeItem(env.id)}
+                      ariaLabel={`Delete envelope ${env.name}`}
+                    />
                   </div>
                 </div>
                 <div className="envelope-amounts">
                   <span
                     className="spent"
-                    style={{ color: over ? 'var(--rose)' : 'var(--text-primary)' }}
+                    style={{ color: over ? 'var(--as-status-error)' : 'var(--as-text-primary)' }}
                   >
                     {fmt(env.spent_amount)} spent
                   </span>
@@ -339,7 +480,7 @@ export default function Envelopes() {
                   style={{
                     marginTop: 6,
                     fontSize: '0.8rem',
-                    color: over ? 'var(--rose)' : 'var(--accent)',
+                    color: over ? 'var(--as-status-error)' : 'var(--as-accent-primary)',
                     fontWeight: 600,
                   }}
                 >
@@ -350,14 +491,18 @@ export default function Envelopes() {
                     style={{
                       marginTop: 6,
                       fontSize: '0.72rem',
-                      color: 'var(--text-dim)',
+                      color: 'var(--as-text-muted)',
                       display: 'flex',
                       alignItems: 'center',
                     }}
                   >
-                    <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                      edit_note
-                    </span>{' '}
+                    <FileText
+                      size={13}
+                      strokeWidth={2.0}
+                      aria-hidden="true"
+                      focusable="false"
+                      style={{ marginRight: 4 }}
+                    />{' '}
                     {env.notes}
                   </div>
                 )}
@@ -422,10 +567,15 @@ export default function Envelopes() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowModal(false)}
+                  aria-label="Cancel envelope creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Create envelope"
+                >
                   Create
                 </button>
               </div>
@@ -463,10 +613,15 @@ export default function Envelopes() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowSpendModal(null)}
+                  aria-label="Cancel spending entry"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Log spending entry"
+                >
                   Log
                 </button>
               </div>

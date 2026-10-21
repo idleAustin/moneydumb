@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import "@fontsource/ibm-plex-mono/400.css";
-import "@fontsource/ibm-plex-mono/600.css";
 
 export const metadata: Metadata = {
   title: 'MONEY_DUMB', // Change this
@@ -9,11 +7,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#050505",
+  themeColor: "#0a0a0c",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, // Prevents zooming on iPhone inputs
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -24,13 +21,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Core typography & Material icons */}
+        {/* idleAustin Core Typography: Outfit (headings), Geist (body), Fira Code (monetary/telemetry) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+        <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400..600&family=Geist:wght@300..800&family=Outfit:wght@400..900&display=swap" rel="stylesheet" />
       </head>
-      <body className="antialiased min-h-screen" style={{ background: '#0A0A0F', color: '#FAFAFA', fontFamily: "'Inter', sans-serif" }}>
+      <body className="antialiased min-h-screen" style={{ background: 'var(--as-bg-base)', color: 'var(--as-text-primary)', fontFamily: 'var(--as-font-body)' }}>
         {children}
       </body>
     </html>

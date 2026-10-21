@@ -1,6 +1,8 @@
 /* index.css */
 @import "./base.css";
 @import "./components.css";
+@import "./widgets.css";
 @import "./pages.css";
+@import "./responsive.css";
 @import "./thismonth.css";
 @import "./utilities.css";

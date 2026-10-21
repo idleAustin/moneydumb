@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     let totalInterest = 0.0;
     let maxMonths = 0;
 
-    let availableExtra = extra;
+    const availableExtra = extra;
 
     for (let i = 0; i < debts.length; i++) {
       const d = debts[i];

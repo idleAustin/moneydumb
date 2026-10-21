@@ -1,4 +1,7 @@
+'use client';
+
 import { useRef, useEffect } from 'react';
+import { Search, X } from 'lucide-react';
 
 interface TableSearchProps {
   searchQuery: string;
@@ -31,22 +34,43 @@ export default function TableSearch({
 
   return (
     <div className="table-search-container" ref={containerRef}>
-      <button
-        type="button"
-        className={`table-search-btn ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        title="Search table"
-      >
-        <span className="material-symbols-rounded" style={{ fontSize: '1.25rem' }}>search</span>
-      </button>
+      <div className="tooltip-wrapper">
+        <button
+          type="button"
+          className={`table-search-btn ${isOpen ? 'active' : ''}`}
+          onClick={() => setIsOpen(!isOpen)}
+          aria-label="Search table"
+        >
+          <Search size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+        </button>
+        {!isOpen && (
+          <div className="tooltip-bubble" role="tooltip">
+            <span>Search table</span>
+            <span className="tooltip-kbd">Filter</span>
+          </div>
+        )}
+      </div>
+
       {isOpen && (
         <div className="table-search-popup fade-in">
-          <span className="material-symbols-rounded search-popup-icon">search</span>
+          <Search
+            size={14}
+            strokeWidth={2.0}
+            className="search-popup-icon"
+            aria-hidden="true"
+            focusable="false"
+          />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setIsOpen(false);
+              }
+            }}
             placeholder="Search..."
+            aria-label="Search table query"
             autoFocus
           />
           {searchQuery && (
@@ -54,9 +78,9 @@ export default function TableSearch({
               type="button"
               className="clear-btn"
               onClick={() => setSearchQuery('')}
-              title="Clear search"
+              aria-label="Clear search"
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.1rem' }}>close</span>
+              <X size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             </button>
           )}
         </div>

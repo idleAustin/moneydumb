@@ -4,7 +4,9 @@ import { sql } from '@/app/lib/db';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
 import crypto from 'crypto';
+import { getAuthUserId, createSessionToken } from '@/app/lib/auth';
 
 // --- 1. IDENTITY & AUTHENTICATION ---
 
@@ -28,31 +30,31 @@ export async function registerUser(formData: FormData) {
 }
 
 export async function authenticate(formData: FormData) {
-  const username = formData.get('username') as string;
-  const password = formData.get('password') as string;
+  const username = (formData.get('username') as string || '').trim();
+  const password = (formData.get('password') as string || '').trim();
 
-  let userId: string | null = null;
+  if (!username || !password) {
+    return { success: false, message: 'Identity and passcode required' };
+  }
 
   try {
     const userResult = await sql`SELECT * FROM users WHERE username = ${username}`;
     
     if (userResult.rows.length === 0) {
       console.log('[Auth] User not found:', username);
-      redirect('/');
+      return { success: false, message: 'Invalid identity or passcode' };
     }
 
     const user = userResult.rows[0];
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
       console.log('[Auth] Password mismatch for:', username);
-      redirect('/');
+      return { success: false, message: 'Invalid identity or passcode' };
     }
-
-    userId = user.id;
 
     // Success: Establish secure HTTP-only Session Cookie
     const cookieStore = await cookies();
-    cookieStore.set('session', user.id, {
+    cookieStore.set('session', createSessionToken(user.id), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
@@ -60,16 +62,11 @@ export async function authenticate(formData: FormData) {
       path: '/',
     });
 
+    return { success: true };
   } catch (e: any) {
-    // Next.js redirect() works by throwing — always re-throw it
-    if (e?.digest?.startsWith('NEXT_REDIRECT')) {
-      throw e;
-    }
     console.error('Authentication error:', e);
-    redirect('/');
+    return { success: false, message: 'Authentication service unavailable' };
   }
-  
-  redirect('/dashboard');
 }
 
 export async function logoutUser() {
@@ -128,7 +125,7 @@ export async function loginDemoUser() {
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${housingId}, ${userId}, 'Housing', '#ef4444', '🏠')`;
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${subId}, ${userId}, 'Subscriptions', '#3b82f6', '🔄')`;
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${foodId}, ${userId}, 'Food', '#10b981', '🍔')`;
-    await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${utilId}, ${userId}, 'Utilities', '#f59e0b', '⚡')`;
+    await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${utilId}, ${userId}, 'Utilities', 'var(--as-status-warning)', '⚡')`;
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${entId}, ${userId}, 'Entertainment', '#ec4899', '🎬')`;
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${transportId}, ${userId}, 'Transport', '#14b8a6', '🚗')`;
     await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${debtCatId}, ${userId}, 'Debts', '#8b5cf6', '💸')`;
@@ -224,16 +221,371 @@ export async function loginDemoUser() {
     await sql`INSERT INTO committed_payoff_plan (id, user_id, strategy, extra_payment) VALUES (${crypto.randomUUID()}, ${userId}, 'avalanche', 350.00)`;
 
     // D. Log the user in to their fresh sandbox instance
-    cookieStore.set('session', userId, {
+    cookieStore.set('session', createSessionToken(userId), {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 24-hour sandbox lifecycle
       path: '/',
     });
 
+    return { success: true };
   } catch (error) {
     console.error('Sandbox Seeding Failure:', error);
+    return { success: false, message: 'Sandbox initialization failed' };
+  }
+}
+
+// --- TYPE INTERFACES FOR LEGACY COMPATIBILITY ---
+
+export interface BankAccount {
+  id: string;
+  name: string;
+  current_balance: number;
+  pending_total: number;
+}
+
+export interface InboundTransaction {
+  id: string;
+  date: string;
+  note: string;
+  amount: number;
+}
+
+export interface UpcomingBillItem {
+  id: string;
+  name: string;
+  amount: number;
+  daysUntil: number;
+  status: 'pending' | 'not-paid';
+}
+
+export interface DashboardStats {
+  bankCount: number;
+  totalAssets: number;
+  pendingOut: number;
+  safeBalance: number;
+  upcomingBills: UpcomingBillItem[];
+}
+
+export interface ExpenseType {
+  id: string;
+  name: string;
+}
+
+// --- 3. LEGACY DASHBOARD ACTIONS (ACCOUNTS & AUDIT) ---
+
+export async function getBanks(): Promise<BankAccount[]> {
+  const userId = await getAuthUserId();
+  if (!userId) return [];
+
+  try {
+    const result = await sql`
+      SELECT 
+        a.id, 
+        a.name, 
+        a.balance AS current_balance,
+        COALESCE((
+          SELECT SUM(e.amount) 
+          FROM expenses e 
+          WHERE e.account_id = a.id AND e.user_id = ${userId}
+        ), 0) AS pending_total
+      FROM accounts a
+      WHERE a.user_id = ${userId}
+      ORDER BY a.name ASC
+    `;
+
+    return result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      current_balance: parseFloat(row.current_balance) || 0.0,
+      pending_total: parseFloat(row.pending_total) || 0.0,
+    }));
+  } catch (error) {
+    console.error('getBanks error:', error);
+    return [];
+  }
+}
+
+export async function updateAllBalances(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  try {
+    const now = new Date().toISOString();
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith('balance_')) {
+        const accountId = key.replace('balance_', '');
+        const balance = parseFloat(value as string);
+        if (!isNaN(balance)) {
+          await sql`
+            UPDATE accounts 
+            SET balance = ${balance}, balance_updated_at = ${now} 
+            WHERE id = ${accountId} AND user_id = ${userId}
+          `;
+        }
+      }
+    }
+  } catch (error) {
+    console.error('updateAllBalances error:', error);
   }
 
-  redirect('/dashboard');
+  revalidatePath('/dashboard/banks');
+  revalidatePath('/dashboard/audit');
+  revalidatePath('/dashboard/this-month');
+  redirect('/dashboard/this-month');
+}
+
+export async function getBankById(id: string): Promise<BankAccount | null> {
+  const userId = await getAuthUserId();
+  if (!userId) return null;
+
+  try {
+    const result = await sql`
+      SELECT 
+        a.id, 
+        a.name, 
+        a.balance AS current_balance,
+        COALESCE((
+          SELECT SUM(e.amount) 
+          FROM expenses e 
+          WHERE e.account_id = a.id AND e.user_id = ${userId}
+        ), 0) AS pending_total
+      FROM accounts a
+      WHERE a.id = ${id} AND a.user_id = ${userId}
+    `;
+
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+
+    return {
+      id: row.id,
+      name: row.name,
+      current_balance: parseFloat(row.current_balance) || 0.0,
+      pending_total: parseFloat(row.pending_total) || 0.0,
+    };
+  } catch (error) {
+    console.error('getBankById error:', error);
+    return null;
+  }
+}
+
+export async function createBank(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  try {
+    const name = (formData.get('name') as string)?.trim();
+    const balance = parseFloat(formData.get('balance') as string) || 0.0;
+    if (!name) return;
+
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    await sql`
+      INSERT INTO accounts (id, user_id, name, account_type, balance, balance_updated_at)
+      VALUES (${id}, ${userId}, ${name}, 'checking', ${balance}, ${now})
+    `;
+  } catch (error) {
+    console.error('createBank error:', error);
+  }
+
+  revalidatePath('/dashboard/banks');
+}
+
+export async function deleteBank(id: string): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId || !id) return;
+
+  try {
+    await sql`DELETE FROM accounts WHERE id = ${id} AND user_id = ${userId}`;
+  } catch (error) {
+    console.error('deleteBank error:', error);
+  }
+
+  revalidatePath('/dashboard/banks');
+}
+
+export async function updateBankBalance(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  const bankId = formData.get('bankId') as string;
+  const balance = parseFloat(formData.get('balance') as string) || 0.0;
+  if (!bankId) return;
+
+  try {
+    const now = new Date().toISOString();
+    await sql`
+      UPDATE accounts 
+      SET balance = ${balance}, balance_updated_at = ${now} 
+      WHERE id = ${bankId} AND user_id = ${userId}
+    `;
+  } catch (error) {
+    console.error('updateBankBalance error:', error);
+  }
+
+  revalidatePath(`/dashboard/banks/${bankId}`);
+  revalidatePath('/dashboard/banks');
+  redirect(`/dashboard/banks/${bankId}`);
+}
+
+export async function getInbounds(bankId: string): Promise<InboundTransaction[]> {
+  const userId = await getAuthUserId();
+  if (!userId || !bankId) return [];
+
+  try {
+    const result = await sql`
+      SELECT id, received_date AS date, COALESCE(notes, '') AS note, amount 
+      FROM income_events 
+      WHERE account_id = ${bankId} AND account_id IN (SELECT id FROM accounts WHERE user_id = ${userId})
+      ORDER BY received_date ASC
+    `;
+
+    return result.rows.map(row => ({
+      id: row.id,
+      date: row.date,
+      note: row.note,
+      amount: parseFloat(row.amount) || 0.0,
+    }));
+  } catch (error) {
+    console.error('getInbounds error:', error);
+    return [];
+  }
+}
+
+export async function createInbound(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  const bankId = formData.get('bankId') as string;
+  const date = formData.get('date') as string;
+  const amount = parseFloat(formData.get('amount') as string) || 0.0;
+  const note = ((formData.get('note') as string) || '').slice(0, 20);
+
+  if (!bankId || !date) return;
+
+  try {
+    const accountCheck = await sql`SELECT id FROM accounts WHERE id = ${bankId} AND user_id = ${userId}`;
+    if (accountCheck.rows.length === 0) return;
+
+    const id = crypto.randomUUID();
+    await sql`
+      INSERT INTO income_events (id, account_id, amount, received_date, notes)
+      VALUES (${id}, ${bankId}, ${amount}, ${date}, ${note})
+    `;
+  } catch (error) {
+    console.error('createInbound error:', error);
+  }
+
+  revalidatePath(`/dashboard/banks/${bankId}`);
+  redirect(`/dashboard/banks/${bankId}`);
+}
+
+export async function deleteInbound(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  const id = formData.get('id') as string;
+  const bankId = formData.get('bankId') as string;
+  if (!id) return;
+
+  try {
+    await sql`
+      DELETE FROM income_events 
+      WHERE id = ${id} AND account_id IN (SELECT id FROM accounts WHERE user_id = ${userId})
+    `;
+  } catch (error) {
+    console.error('deleteInbound error:', error);
+  }
+
+  if (bankId) {
+    revalidatePath(`/dashboard/banks/${bankId}`);
+    redirect(`/dashboard/banks/${bankId}`);
+  }
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const userId = await getAuthUserId();
+  if (!userId) {
+    return { bankCount: 0, totalAssets: 0, pendingOut: 0, safeBalance: 0, upcomingBills: [] };
+  }
+
+  try {
+    const accountsResult = await sql`
+      SELECT COUNT(*) AS count, COALESCE(SUM(balance), 0) AS total FROM accounts WHERE user_id = ${userId}
+    `;
+    const bankCount = parseInt(accountsResult.rows[0].count) || 0;
+    const totalAssets = parseFloat(accountsResult.rows[0].total) || 0.0;
+
+    const expensesResult = await sql`
+      SELECT id, name, amount, due_day_of_month FROM expenses WHERE user_id = ${userId} AND is_recurring = 1 ORDER BY due_day_of_month ASC
+    `;
+
+    const todayDay = new Date().getDate();
+    let pendingOut = 0.0;
+
+    const upcomingBills: UpcomingBillItem[] = expensesResult.rows.map(exp => {
+      const dueDay = parseInt(exp.due_day_of_month) || 1;
+      const daysUntil = dueDay - todayDay;
+      const amount = parseFloat(exp.amount) || 0.0;
+      if (daysUntil >= 0) pendingOut += amount;
+      return {
+        id: exp.id,
+        name: exp.name,
+        amount,
+        daysUntil,
+        status: daysUntil < 0 ? 'not-paid' : 'pending',
+      };
+    });
+
+    const safeBalance = totalAssets - pendingOut;
+    return { bankCount, totalAssets, pendingOut, safeBalance, upcomingBills };
+  } catch (error) {
+    console.error('getDashboardStats error:', error);
+    return { bankCount: 0, totalAssets: 0, pendingOut: 0, safeBalance: 0, upcomingBills: [] };
+  }
+}
+
+export async function getExpenseTypes(): Promise<ExpenseType[]> {
+  const userId = await getAuthUserId();
+  if (!userId) return [];
+
+  try {
+    const result = await sql`SELECT id, name FROM expense_categories WHERE user_id = ${userId} ORDER BY name ASC`;
+    return result.rows.map(row => ({ id: row.id, name: row.name }));
+  } catch (error) {
+    console.error('getExpenseTypes error:', error);
+    return [];
+  }
+}
+
+export async function createExpenseType(formData: FormData): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId) return;
+
+  const name = (formData.get('name') as string)?.trim();
+  if (!name) return;
+
+  try {
+    const id = crypto.randomUUID();
+    await sql`INSERT INTO expense_categories (id, user_id, name, color, icon) VALUES (${id}, ${userId}, ${name}, 'var(--as-accent-primary)', 'folder')`;
+  } catch (error) {
+    console.error('createExpenseType error:', error);
+  }
+
+  revalidatePath('/dashboard/types');
+}
+
+export async function deleteExpenseType(id: string): Promise<void> {
+  const userId = await getAuthUserId();
+  if (!userId || !id) return;
+
+  try {
+    await sql`DELETE FROM expense_categories WHERE id = ${id} AND user_id = ${userId}`;
+  } catch (error) {
+    console.error('deleteExpenseType error:', error);
+  }
+
+  revalidatePath('/dashboard/types');
 }

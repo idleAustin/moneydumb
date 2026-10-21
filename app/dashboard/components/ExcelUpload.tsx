@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { Download, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface TemplateColumn {
   header: string;
@@ -13,10 +14,13 @@ interface ImportResult {
   errors: string[];
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ExcelRow = Record<string, any>;
+
 interface ExcelUploadProps {
   templateColumns: TemplateColumn[];
   templateName: string;
-  onImport: (rows: any[]) => Promise<ImportResult> | ImportResult;
+  onImport: (rows: ExcelRow[]) => Promise<ImportResult> | ImportResult;
   onComplete?: () => void;
 }
 
@@ -60,7 +64,7 @@ export default function ExcelUpload({
       const data = await file.arrayBuffer();
       const wb = XLSX.read(data, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      const rows = XLSX.utils.sheet_to_json<ExcelRow>(ws, { defval: '' });
 
       if (rows.length === 0) {
         setResult({
@@ -75,11 +79,12 @@ export default function ExcelUpload({
       const { created, errors } = await onImport(rows);
       setResult({ total: rows.length, created, errors });
       if (onComplete) onComplete();
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
       setResult({
         total: 0,
         created: 0,
-        errors: [`Failed to read file: ${err.message}`],
+        errors: [`Failed to read file: ${message}`],
       });
     } finally {
       setImporting(false);
@@ -91,45 +96,34 @@ export default function ExcelUpload({
     <>
       <div style={{ display: 'flex', gap: 6 }}>
         <button
+          type="button"
           className="btn btn-secondary btn-small"
           onClick={downloadTemplate}
+          aria-label="Download Excel template"
           title="Download Excel template"
         >
-          <span style={{ display: 'flex', alignItems: 'center' }}>
-            <span
-              className="material-symbols-rounded"
-              style={{ fontSize: '1.2em', marginRight: 4 }}
-            >
-              download
-            </span>{' '}
-            Template
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Download size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Template</span>
           </span>
         </button>
         <button
+          type="button"
           className="btn btn-secondary btn-small"
           onClick={() => fileRef.current?.click()}
           disabled={importing}
+          aria-label={importing ? 'Importing Excel file' : 'Upload filled Excel file'}
           title="Upload filled Excel file"
         >
           {importing ? (
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              <span
-                className="material-symbols-rounded"
-                style={{ fontSize: '1.2em', marginRight: 4 }}
-              >
-                hourglass_empty
-              </span>{' '}
-              Importing…
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Loader2 size={14} strokeWidth={2.0} className="animate-spin" aria-hidden="true" focusable="false" />
+              <span>Importing…</span>
             </span>
           ) : (
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              <span
-                className="material-symbols-rounded"
-                style={{ fontSize: '1.2em', marginRight: 4 }}
-              >
-                upload
-              </span>{' '}
-              Upload
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Upload size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Upload</span>
             </span>
           )}
         </button>
@@ -139,6 +133,7 @@ export default function ExcelUpload({
           accept=".xlsx,.xls,.csv"
           style={{ display: 'none' }}
           onChange={handleFile}
+          aria-label="Upload spreadsheet file"
         />
       </div>
 
@@ -146,13 +141,15 @@ export default function ExcelUpload({
       {result && (
         <div className="modal-overlay" onClick={() => setResult(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                {result.created > 0 ? 'check_circle' : 'warning_amber'}
-              </span>{' '}
-              {result.created > 0 ? 'Import Complete' : 'Import Result'}
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0, fontSize: '1rem', color: 'var(--as-text-primary)' }}>
+              {result.created > 0 ? (
+                <CheckCircle2 size={18} strokeWidth={2.0} style={{ color: 'var(--as-status-success)' }} aria-hidden="true" focusable="false" />
+              ) : (
+                <AlertTriangle size={18} strokeWidth={2.0} style={{ color: 'var(--as-status-warning)' }} aria-hidden="true" focusable="false" />
+              )}
+              <span>{result.created > 0 ? 'Import Complete' : 'Import Result'}</span>
             </h3>
-            <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, marginTop: 16 }}>
               <div className="stat-card" style={{ flex: 1, padding: '12px 16px' }}>
                 <div className="stat-label">Rows Found</div>
                 <div className="stat-value" style={{ fontSize: '1.4rem' }}>
@@ -180,10 +177,11 @@ export default function ExcelUpload({
                   maxHeight: 160,
                   overflowY: 'auto',
                   fontSize: '0.78rem',
-                  background: 'var(--bg-highlight)',
-                  borderRadius: 8,
+                  background: 'var(--as-bg-elevated)',
+                  border: '1px solid var(--as-border-subtle)',
+                  borderRadius: 'var(--as-radius-md)',
                   padding: 12,
-                  color: 'var(--rose)',
+                  color: 'var(--as-status-error)',
                   marginBottom: 12,
                 }}
               >
@@ -192,8 +190,13 @@ export default function ExcelUpload({
                 ))}
               </div>
             )}
-            <div className="modal-actions">
-              <button className="btn btn-primary" onClick={() => setResult(null)}>
+            <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setResult(null)}
+                aria-label="Dismiss import results"
+              >
                 Done
               </button>
             </div>

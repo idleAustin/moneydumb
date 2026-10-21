@@ -1,8 +1,33 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import {
+  Zap,
+  CreditCard,
+  Download,
+  Upload,
+  FileUp,
+  Target,
+  Plus,
+  CheckCircle2,
+  ExternalLink,
+  Link as LinkIcon,
+  XCircle,
+  AlertTriangle,
+  TrendingUp,
+  Unlock,
+  Settings,
+  Snowflake,
+  Mountain,
+  X,
+  Check,
+  Eye,
+  EyeOff,
+  BarChart3,
+} from 'lucide-react';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
 import useTable from '../hooks/useTable';
@@ -164,6 +189,7 @@ export default function Debts() {
   }, []);
 
   useEffect(() => {
+    let active = true;
     if (debts.length > 0) {
       const params: any = { strategy };
       if (excludedDebtIds.length > 0) {
@@ -174,11 +200,18 @@ export default function Debts() {
       }
       axios
         .get('/api/debts/payoff', { params })
-        .then((r) => setPayoff(r.data))
+        .then((r) => {
+          if (active) setPayoff(r.data);
+        })
         .catch(console.error);
     } else {
-      setPayoff(null);
+      Promise.resolve().then(() => {
+        if (active) setPayoff(null);
+      });
     }
+    return () => {
+      active = false;
+    };
   }, [debts, strategy, excludedDebtIds, targetMonths]);
 
   const toggleDebtInPlan = (debtId: string) => {
@@ -365,7 +398,6 @@ export default function Debts() {
       const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
       const validTypes = DEBT_TYPES.map((t) => t.value);
       const validStrategies = PAYMENT_STRATEGIES.map((s) => s.value);
-      let created = 0;
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(',');
         if (cols.length < 3) continue;
@@ -395,7 +427,6 @@ export default function Debts() {
             payment_strategy: str,
             url: row.url || null,
           });
-          created++;
         } catch (err) {
           console.error('Row', i, err);
         }
@@ -459,9 +490,7 @@ export default function Debts() {
             style={{ borderColor: '#f43f5e', background: 'rgba(244,63,94,0.08)' }}
           >
             <div className="stat-label" style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                bolt
-              </span>{' '}
+              <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Due Immediately
             </div>
             <div className="stat-value" style={{ color: '#f43f5e' }}>
@@ -475,9 +504,7 @@ export default function Debts() {
       <div className="card section">
         <div className="card-header">
           <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              credit_card
-            </span>{' '}
+            <CreditCard size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
             All Debts
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -485,11 +512,10 @@ export default function Debts() {
               className="btn btn-secondary btn-small"
               onClick={downloadTemplate}
               title="Download CSV template"
+              aria-label="Download CSV template"
               style={{ display: 'flex', alignItems: 'center' }}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                download
-              </span>{' '}
+              <Download size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Template
             </button>
             <button
@@ -497,11 +523,10 @@ export default function Debts() {
               onClick={downloadExport}
               disabled={debts.length === 0}
               title="Export debts to CSV"
+              aria-label="Export debts to CSV"
               style={{ display: 'flex', alignItems: 'center' }}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                upload
-              </span>{' '}
+              <Upload size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Export
             </button>
             <label
@@ -509,9 +534,7 @@ export default function Debts() {
               style={{ cursor: 'pointer', margin: 0, display: 'flex', alignItems: 'center' }}
               title="Upload CSV file"
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                upload_file
-              </span>{' '}
+              <FileUp size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Upload
               <input type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
             </label>
@@ -519,11 +542,10 @@ export default function Debts() {
               className="btn btn-secondary btn-small"
               onClick={() => setShowBonusModal(true)}
               disabled={debts.length === 0}
+              aria-label="Plan Bonus"
               style={{ display: 'flex', alignItems: 'center' }}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                track_changes
-              </span>{' '}
+              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Plan Bonus
             </button>
             <TableSearch
@@ -532,23 +554,27 @@ export default function Debts() {
               isOpen={allDebtsTable.searchOpen}
               setIsOpen={allDebtsTable.setSearchOpen}
             />
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-              + Add Debt
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              aria-label="Add Debt"
+            >
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Add Debt
             </button>
           </div>
         </div>
         {debts.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                celebration
-              </span>
+              <CheckCircle2 size={32} strokeWidth={1.5} aria-hidden="true" focusable="false" />
             </div>
-            <h3>No debts!</h3>
-            <p>You're debt-free or haven't added your debts yet.</p>
+            <h3>No debts.</h3>
+            <p>Zero active debt liabilities recorded.</p>
           </div>
         ) : (
-          <table className="data-table">
+          <div className="overflow-x-auto">
+            <table className="data-table">
             <thead>
               <tr>
                 <TableHeader
@@ -651,13 +677,9 @@ export default function Debts() {
                               textDecoration: 'none',
                             }}
                             title="Visit site"
+                            aria-label={`Visit site for ${d.name}`}
                           >
-                            <span
-                              className="material-symbols-rounded"
-                              style={{ fontSize: '1.1rem' }}
-                            >
-                              open_in_new
-                            </span>
+                            <ExternalLink size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                           </a>
                         )}
                       </div>
@@ -670,7 +692,7 @@ export default function Debts() {
                           alignItems: 'center',
                           padding: '4px 8px',
                           borderRadius: 6,
-                          background: d.url ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-secondary)',
+                          background: d.url ? 'var(--as-status-warning-bg)' : 'var(--as-bg-surface)',
                           color: d.url ? 'var(--accent)' : 'var(--text-dim)',
                           border: '1px solid var(--border-color)',
                           cursor: 'pointer',
@@ -679,10 +701,9 @@ export default function Debts() {
                         }}
                         onClick={() => openLinkModal(d)}
                         title={d.url ? 'Edit website link' : 'Add website link'}
+                        aria-label={d.url ? `Edit website link for ${d.name}` : `Add website link for ${d.name}`}
                       >
-                        <span className="material-symbols-rounded" style={{ fontSize: '1rem', marginRight: 4 }}>
-                          link
-                        </span>
+                        <LinkIcon size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />
                         {d.url ? 'Edit' : 'Add'}
                       </button>
                     </td>
@@ -724,9 +745,13 @@ export default function Debts() {
                           letterSpacing: '0.02em',
                         }}
                       >
-                        <span className="material-symbols-rounded" style={{ fontSize: '1em' }}>
-                          {qualityInfo.icon}
-                        </span>{' '}
+                        {d.debt_quality === 'good' ? (
+                          <CheckCircle2 size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                        ) : d.debt_quality === 'bad' ? (
+                          <XCircle size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                        ) : (
+                          <AlertTriangle size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                        )}
                         {qualityInfo.label}
                       </span>
                     </td>
@@ -823,24 +848,25 @@ export default function Debts() {
                       >
                         {fmt(d.calculated_payment || 0)}
                         {d.payment_strategy === 'payoff_plan' && !committedPlan && (
-                          <span
-                            className="material-symbols-rounded"
-                            style={{ fontSize: '1.2em', color: 'var(--text-muted)', marginLeft: 4 }}
-                            title="No committed plan — showing minimum fallback"
-                          >
-                            warning_amber
-                          </span>
+                          <AlertTriangle
+                            size={14}
+                            strokeWidth={2.0}
+                            aria-hidden="true"
+                            focusable="false"
+                            style={{ color: 'var(--text-muted)', marginLeft: 4 }}
+                          />
                         )}
                       </span>
                     </td>
                     <td>
-                      <DeleteButton onDelete={() => deleteDebtItem(d.id)} />
+                      <DeleteButton onDelete={() => deleteDebtItem(d.id)} ariaLabel={`Delete ${d.name}`} />
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+        </div>
         )}
       </div>
 
@@ -849,9 +875,7 @@ export default function Debts() {
         <div className="card section">
           <div className="card-header">
             <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                trending_up
-              </span>{' '}
+              <TrendingUp size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               Payoff Plan
             </h3>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -869,10 +893,9 @@ export default function Debts() {
                     await axios.delete('/api/debts/payoff/committed');
                     setCommittedPlan(null);
                   }}
+                  aria-label="Unlock Plan"
                 >
-                  <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                    lock_open
-                  </span>{' '}
+                  <Unlock size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                   Unlock Plan
                 </button>
               ) : (
@@ -886,6 +909,7 @@ export default function Debts() {
                     border: '1px solid rgba(74,144,217,0.3)',
                   }}
                   disabled={committing}
+                  aria-label="Commit This Plan"
                   onClick={async () => {
                     setCommitting(true);
                     try {
@@ -906,9 +930,7 @@ export default function Debts() {
                     setCommitting(false);
                   }}
                 >
-                  <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                    check_circle
-                  </span>{' '}
+                  <CheckCircle2 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                   Commit This Plan
                 </button>
               )}
@@ -916,30 +938,27 @@ export default function Debts() {
                 className="btn btn-secondary btn-small"
                 onClick={() => setShowPayoffConfig(true)}
                 style={{ display: 'flex', alignItems: 'center' }}
+                aria-label="Configure Plan"
               >
-                <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                  settings
-                </span>{' '}
+                <Settings size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                 Configure
               </button>
               <button
                 className={`btn btn-small ${strategy === 'snowball' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setStrategy('snowball')}
                 style={{ display: 'flex', alignItems: 'center' }}
+                aria-label="Snowball strategy"
               >
-                <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                  ac_unit
-                </span>{' '}
+                <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                 Snowball
               </button>
               <button
                 className={`btn btn-small ${strategy === 'avalanche' ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setStrategy('avalanche')}
                 style={{ display: 'flex', alignItems: 'center' }}
+                aria-label="Avalanche strategy"
               >
-                <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 4 }}>
-                  landscape
-                </span>{' '}
+                <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                 Avalanche
               </button>
             </div>
@@ -957,9 +976,7 @@ export default function Debts() {
                 alignItems: 'center',
               }}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 6 }}>
-                warning_amber
-              </span>{' '}
+              <AlertTriangle size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               {excludedDebtIds.length} debt{excludedDebtIds.length > 1 ? 's' : ''} excluded from this plan
             </div>
           )}
@@ -968,6 +985,7 @@ export default function Debts() {
           <div
             style={{
               display: 'flex',
+              flexWrap: 'wrap',
               alignItems: 'center',
               gap: 12,
               marginBottom: 20,
@@ -986,9 +1004,7 @@ export default function Debts() {
                 alignItems: 'center',
               }}
             >
-              <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                track_changes
-              </span>{' '}
+              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
               Target payoff in
             </span>
             <input
@@ -1020,9 +1036,13 @@ export default function Debts() {
                   cursor: 'pointer',
                   color: 'var(--text-muted)',
                   fontSize: '0.8rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
                 }}
+                aria-label="Clear target payoff months"
               >
-                ✕ clear
+                <X size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Clear
               </button>
             )}
             {targetMonths && (() => {
@@ -1045,9 +1065,8 @@ export default function Debts() {
           </div>
 
           <div
+            className={targetMonths ? 'card-grid-4' : 'card-grid-3'}
             style={{
-              display: 'grid',
-              gridTemplateColumns: targetMonths ? 'repeat(4,1fr)' : 'repeat(3,1fr)',
               gap: 16,
               marginBottom: 20,
             }}
@@ -1065,16 +1084,12 @@ export default function Debts() {
               >
                 {payoff.strategy === 'snowball' ? (
                   <>
-                    <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                      ac_unit
-                    </span>{' '}
+                    <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                     Snowball
                   </>
                 ) : (
                   <>
-                    <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                      landscape
-                    </span>{' '}
+                    <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                     Avalanche
                   </>
                 )}
@@ -1202,33 +1217,36 @@ export default function Debts() {
               <>
                 <ResponsiveContainer width="100%" height={Math.max(160, payoff.debts_order.length * 50)}>
                   <BarChart data={chartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2a2a4a" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#22222a" />
                     <XAxis
                       type="number"
-                      stroke="#555577"
+                      stroke="#71717a"
                       fontSize={11}
                       ticks={ticks}
                       tickFormatter={formatMonthTick}
                       domain={[0, maxM]}
+                      fontFamily="var(--as-font-mono)"
                     />
                     <YAxis
                       type="category"
                       dataKey="debt_name"
                       width={120}
-                      stroke="#555577"
+                      stroke="#71717a"
                       fontSize={12}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#1a1a2e',
-                        border: '1px solid #2a2a4a',
-                        borderRadius: 8,
+                        background: '#18181f',
+                        border: '1px solid #33333f',
+                        borderRadius: 6,
+                        fontFamily: 'var(--as-font-mono)',
+                        fontSize: '0.8rem',
                       }}
                       formatter={(v, name) =>
                         name === 'months_to_payoff' ? `${v} months` : fmt(Number(v))
                       }
                     />
-                    <Bar dataKey="months_to_payoff" fill="#4a90d9" radius={[0, 4, 4, 0]} name="Months" />
+                    <Bar dataKey="months_to_payoff" fill="#84cc16" radius={[0, 4, 4, 0]} name="Months" />
                   </BarChart>
                 </ResponsiveContainer>
 
@@ -1268,7 +1286,7 @@ export default function Debts() {
                               left: 0,
                               top: 0,
                               zIndex: 3,
-                              background: 'var(--bg-primary)',
+                              background: 'var(--as-bg-elevated)',
                               minWidth: 150,
                               boxShadow: '2px 0 4px rgba(0,0,0,0.2)',
                             }}
@@ -1285,7 +1303,7 @@ export default function Debts() {
                                 color: row.isCurrent ? 'var(--accent-blue)' : 'var(--text-secondary)',
                                 background: row.isCurrent
                                   ? 'rgba(74,144,217,0.1)'
-                                  : 'var(--bg-primary)',
+                                  : 'var(--as-bg-elevated)',
                                 borderBottom: row.isCurrent
                                   ? '2px solid rgba(74,144,217,0.4)'
                                   : undefined,
@@ -1314,7 +1332,7 @@ export default function Debts() {
                               minWidth: 90,
                               position: 'sticky',
                               right: 0,
-                              background: 'var(--bg-primary)',
+                              background: 'var(--as-bg-elevated)',
                               boxShadow: '-2px 0 4px rgba(0,0,0,0.2)',
                             }}
                           >
@@ -1386,16 +1404,18 @@ export default function Debts() {
                                   >
                                     {p.pay > 0.01 ? fmt(p.pay) : '—'}
                                     {justPaidOff && (
-                                      <span
-                                        className="material-symbols-rounded"
+                                      <Check
+                                        size={12}
+                                        strokeWidth={2.2}
+                                        aria-hidden="true"
+                                        focusable="false"
                                         style={{
-                                          fontSize: '0.8em',
                                           marginLeft: 3,
                                           color: 'var(--accent-green)',
+                                          display: 'inline-block',
+                                          verticalAlign: 'middle',
                                         }}
-                                      >
-                                        check
-                                      </span>
+                                      />
                                     )}
                                   </td>
                                 );
@@ -1478,9 +1498,7 @@ export default function Debts() {
         <div className="card section" style={{ borderColor: 'var(--accent-green)' }}>
           <div className="card-header">
             <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                track_changes
-              </span>{' '}
+              <Target size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               Bonus Allocation Plan
             </h3>
           </div>
@@ -1594,9 +1612,7 @@ export default function Debts() {
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center' }}>
-                  <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                    bolt
-                  </span>{' '}
+                  <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                   Amount Due Immediately
                 </label>
                 <input
@@ -1618,9 +1634,7 @@ export default function Debts() {
               </div>
               <div className="form-group">
                 <label style={{ display: 'flex', alignItems: 'center' }}>
-                  <span className="material-symbols-rounded" style={{ fontSize: '1em', marginRight: 4 }}>
-                    bar_chart
-                  </span>{' '}
+                  <BarChart3 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
                   This Month Payment Strategy
                 </label>
                 <select
@@ -1643,10 +1657,11 @@ export default function Debts() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowModal(false)}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" aria-label="Add Debt">
                   Add
                 </button>
               </div>
@@ -1660,13 +1675,11 @@ export default function Debts() {
         <div className="modal-overlay" onClick={() => setShowBonusModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                track_changes
-              </span>{' '}
+              <Target size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               Plan Bonus Allocation
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
-              Enter a bonus amount and we'll calculate the optimal allocation across your debts.
+              Enter a bonus amount to compute the optimal allocation across active debts.
             </p>
             <form onSubmit={handleBonusSubmit}>
               <div className="form-group">
@@ -1701,10 +1714,11 @@ export default function Debts() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowBonusModal(false)}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" aria-label="Generate Plan">
                   Generate Plan
                 </button>
               </div>
@@ -1726,9 +1740,7 @@ export default function Debts() {
               }}
             >
               <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
-                <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                  settings
-                </span>{' '}
+                <Settings size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
                 Configure Payoff Plan
               </h3>
               <TableSearch
@@ -1741,99 +1753,111 @@ export default function Debts() {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
               Toggle which debts to include in the payoff calculation.
             </p>
-            <table className="data-table" style={{ fontSize: '0.85rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: 40 }}></th>
-                  <TableHeader
-                    label="Name"
-                    sortKey="name"
-                    activeKey={payoffConfigTable.sortKey}
-                    activeDirection={payoffConfigTable.sortDirection}
-                    onClick={payoffConfigTable.requestSort}
-                  />
-                  <TableHeader
-                    label="Type"
-                    sortKey="debt_type"
-                    activeKey={payoffConfigTable.sortKey}
-                    activeDirection={payoffConfigTable.sortDirection}
-                    onClick={payoffConfigTable.requestSort}
-                  />
-                  <TableHeader
-                    label="Balance"
-                    sortKey="balance"
-                    activeKey={payoffConfigTable.sortKey}
-                    activeDirection={payoffConfigTable.sortDirection}
-                    onClick={payoffConfigTable.requestSort}
-                    style={{ textAlign: 'right' }}
-                  />
-                  <TableHeader
-                    label="APR"
-                    sortKey="interest_rate"
-                    activeKey={payoffConfigTable.sortKey}
-                    activeDirection={payoffConfigTable.sortDirection}
-                    onClick={payoffConfigTable.requestSort}
-                    style={{ textAlign: 'right' }}
-                  />
-                  <TableHeader
-                    label="Min Payment"
-                    sortKey="minimum_payment"
-                    activeKey={payoffConfigTable.sortKey}
-                    activeDirection={payoffConfigTable.sortDirection}
-                    onClick={payoffConfigTable.requestSort}
-                    style={{ textAlign: 'right' }}
-                  />
-                </tr>
-              </thead>
-              <tbody>
-                {payoffConfigTable.data.map((d) => {
-                  const excluded = excludedDebtIds.includes(d.id);
-                  return (
-                    <tr
-                      key={d.id}
-                      style={{ opacity: excluded ? 0.4 : 1, transition: 'opacity 0.2s' }}
-                    >
-                      <td>
-                        <button
-                          onClick={() => toggleDebtInPlan(d.id)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '1.1rem',
-                            padding: 4,
-                            borderRadius: 6,
-                          }}
-                          title={excluded ? 'Include in plan' : 'Exclude from plan'}
-                        >
-                          <span className="material-symbols-rounded" style={{ fontSize: '1em' }}>
-                            {excluded ? 'visibility_off' : 'visibility'}
-                          </span>
-                        </button>
-                      </td>
-                      <td style={{ fontWeight: 600 }}>{d.name}</td>
-                      <td>
-                        <span style={{ fontSize: '0.75rem' }}>{getDebtTypeLabel(d.debt_type)}</span>
-                      </td>
-                      <td className="amount">{fmt(d.balance)}</td>
-                      <td style={{ textAlign: 'right' }}>{d.interest_rate.toFixed(1)}%</td>
-                      <td className="amount">{fmt(d.minimum_payment)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ fontSize: '0.85rem' }}>
+                <thead>
+                  <tr>
+                    <th style={{ width: 40 }}></th>
+                    <TableHeader
+                      label="Name"
+                      sortKey="name"
+                      activeKey={payoffConfigTable.sortKey}
+                      activeDirection={payoffConfigTable.sortDirection}
+                      onClick={payoffConfigTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Type"
+                      sortKey="debt_type"
+                      activeKey={payoffConfigTable.sortKey}
+                      activeDirection={payoffConfigTable.sortDirection}
+                      onClick={payoffConfigTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Balance"
+                      sortKey="balance"
+                      activeKey={payoffConfigTable.sortKey}
+                      activeDirection={payoffConfigTable.sortDirection}
+                      onClick={payoffConfigTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="APR"
+                      sortKey="interest_rate"
+                      activeKey={payoffConfigTable.sortKey}
+                      activeDirection={payoffConfigTable.sortDirection}
+                      onClick={payoffConfigTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="Min Payment"
+                      sortKey="minimum_payment"
+                      activeKey={payoffConfigTable.sortKey}
+                      activeDirection={payoffConfigTable.sortDirection}
+                      onClick={payoffConfigTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                  </tr>
+                </thead>
+                <tbody>
+                  {payoffConfigTable.data.map((d) => {
+                    const excluded = excludedDebtIds.includes(d.id);
+                    return (
+                      <tr
+                        key={d.id}
+                        style={{ opacity: excluded ? 0.4 : 1, transition: 'opacity 0.2s' }}
+                      >
+                        <td>
+                          <button
+                            onClick={() => toggleDebtInPlan(d.id)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              fontSize: '1.1rem',
+                              padding: 4,
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                            }}
+                            title={excluded ? 'Include in plan' : 'Exclude from plan'}
+                            aria-label={excluded ? `Include ${d.name} in plan` : `Exclude ${d.name} from plan`}
+                          >
+                            {excluded ? (
+                              <EyeOff size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                            ) : (
+                              <Eye size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                            )}
+                          </button>
+                        </td>
+                        <td style={{ fontWeight: 600 }}>{d.name}</td>
+                        <td>
+                          <span style={{ fontSize: '0.75rem' }}>{getDebtTypeLabel(d.debt_type)}</span>
+                        </td>
+                        <td className="amount">{fmt(d.balance)}</td>
+                        <td style={{ textAlign: 'right' }}>{d.interest_rate.toFixed(1)}%</td>
+                        <td className="amount">{fmt(d.minimum_payment)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
             <div className="modal-actions" style={{ marginTop: 16 }}>
               {excludedDebtIds.length > 0 && (
                 <button
                   className="btn btn-secondary btn-small"
                   onClick={() => setExcludedDebtIds([])}
                   style={{ marginRight: 'auto' }}
+                  aria-label="Include All debts in plan"
                 >
                   Include All
                 </button>
               )}
-              <button className="btn btn-primary" onClick={() => setShowPayoffConfig(false)}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowPayoffConfig(false)}
+                aria-label="Done configuring payoff plan"
+              >
                 Done
               </button>
             </div>
@@ -1852,13 +1876,11 @@ export default function Debts() {
         >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                link
-              </span>
+              <LinkIcon size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               Website Link for {linkModalDebt?.name}
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
-              Configure a direct shortcut to this credit card or debt's online payment site.
+              Configure a direct shortcut to this credit card or debt&apos;s online payment site.
             </p>
             <form onSubmit={handleLinkSave}>
               <div className="form-group">
@@ -1880,10 +1902,11 @@ export default function Debts() {
                     setShowLinkModal(false);
                     setLinkModalDebt(null);
                   }}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" aria-label="Save Link">
                   Save Link
                 </button>
               </div>
