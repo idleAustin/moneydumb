@@ -80,24 +80,41 @@ export default function InlineEdit({
           if (e.key === 'Enter') save();
           if (e.key === 'Escape') cancel();
         }}
+        aria-label={type === 'text' ? 'Edit text value' : 'Edit numeric value'}
         style={{
-          background: 'var(--bg-input)',
-          border: '1px solid var(--accent)',
-          borderRadius: 'var(--r)',
-          color: 'var(--text-primary)',
-          fontFamily: type === 'text' ? "'DM Sans', sans-serif" : "'JetBrains Mono', monospace",
+          background: 'var(--as-bg-base)',
+          border: '1px solid var(--as-accent-primary)',
+          borderRadius: 'var(--as-radius-sm)',
+          color: 'var(--as-text-primary)',
+          fontFamily: type === 'text' ? 'var(--as-font-body)' : 'var(--as-font-mono)',
           fontSize: '0.85rem',
           padding: '4px 8px',
           width: type === 'text' ? '160px' : '100px',
           outline: 'none',
-          boxShadow: '0 0 0 3px var(--accent-dim)',
+          boxShadow: '0 0 0 2px var(--as-accent-muted)',
         }}
       />
     );
   }
 
   return (
-    <span onClick={startEdit} style={{ cursor: 'pointer' }} title="Click to edit">
+    <span
+      onClick={startEdit}
+      style={{
+        cursor: 'pointer',
+        fontFamily: type === 'number' ? 'var(--as-font-mono)' : 'inherit',
+      }}
+      title="Click to edit"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          startEdit();
+        }
+      }}
+      aria-label={type === 'text' ? 'Click to edit text' : 'Click to edit numeric value'}
+    >
       {display}
     </span>
   );

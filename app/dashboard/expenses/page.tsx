@@ -3,12 +3,107 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+  BarChart3,
+  Receipt,
+  ExternalLink,
+  Landmark,
+  Plus,
+  Home,
+  Utensils,
+  Car,
+  Zap,
+  Tv,
+  CreditCard,
+  PiggyBank,
+  ShoppingCart,
+  Folder,
+} from 'lucide-react';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
 import ExcelUpload from '../components/ExcelUpload';
 import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
+
+const EXPENSE_PALETTE = ['#84cc16', '#38bdf8', '#10b981', '#f43f5e', '#64748b', '#22c55e', '#0ea5e9'];
+
+const getCategoryIcon = (iconName?: string, catName?: string) => {
+  const key = `${iconName || ''} ${catName || ''}`.toLowerCase().replace(/_/g, ' ');
+  if (
+    key.includes('card') ||
+    key.includes('credit') ||
+    key.includes('debt') ||
+    key.includes('loan')
+  ) {
+    return <CreditCard size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('shop') ||
+    key.includes('store') ||
+    key.includes('cart')
+  ) {
+    return <ShoppingCart size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    /\bcar\b/.test(key) ||
+    key.includes('auto') ||
+    key.includes('gas') ||
+    key.includes('transport') ||
+    key.includes('transit')
+  ) {
+    return <Car size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('house') ||
+    key.includes('home') ||
+    key.includes('housing') ||
+    key.includes('rent') ||
+    key.includes('mortgage')
+  ) {
+    return <Home size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('food') ||
+    key.includes('dining') ||
+    key.includes('dine') ||
+    key.includes('grocer') ||
+    key.includes('restaurant') ||
+    /\beat\b/.test(key) ||
+    key.includes('utensil')
+  ) {
+    return <Utensils size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('util') ||
+    key.includes('electric') ||
+    key.includes('power') ||
+    key.includes('water') ||
+    key.includes('energy') ||
+    key.includes('zap')
+  ) {
+    return <Zap size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('tv') ||
+    key.includes('stream') ||
+    key.includes('entertain') ||
+    key.includes('movie') ||
+    key.includes('subscript') ||
+    key.includes('music')
+  ) {
+    return <Tv size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  if (
+    key.includes('sav') ||
+    key.includes('invest') ||
+    key.includes('piggy') ||
+    key.includes('bank')
+  ) {
+    return <PiggyBank size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+  }
+  return <Folder size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />;
+};
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -88,7 +183,7 @@ export default function Expenses() {
     defaultSort: { key: 'name', direction: 'asc' },
   });
 
-  const [catForm, setCatForm] = useState({ name: '', color: '#6366f1', icon: 'folder' });
+  const [catForm, setCatForm] = useState({ name: '', color: 'var(--as-status-info)', icon: 'folder' });
 
   const load = () => {
     Promise.all([
@@ -172,7 +267,7 @@ export default function Expenses() {
     e.preventDefault();
     try {
       await axios.post('/api/expenses/categories', catForm);
-      setCatForm({ name: '', color: '#6366f1', icon: 'folder' });
+      setCatForm({ name: '', color: 'var(--as-status-info)', icon: 'folder' });
       setShowCatModal(false);
       load();
     } catch (err) {
@@ -189,7 +284,7 @@ export default function Expenses() {
     }
   };
 
-  const updateExpenseItem = async (id: string, key: string, val: any) => {
+  const updateExpenseItem = async (id: string, key: string, val: string | number | boolean | null) => {
     try {
       await axios.put(`/api/expenses/${id}`, { [key]: val });
       load();
@@ -218,16 +313,14 @@ export default function Expenses() {
     <div className="fade-in">
       <div className="page-header">
         <h2>Expenses</h2>
-        <p>Track your monthly recurring and one-time expenses</p>
+        <p>Monthly recurring obligations and discretionary allocations.</p>
       </div>
 
       <div className="expense-top-grid section">
         <div className="card">
           <div className="card-header">
             <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                bar_chart
-              </span>{' '}
+              <BarChart3 size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
               Expense Breakdown
             </h3>
           </div>
@@ -240,28 +333,30 @@ export default function Expenses() {
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={75}
                   innerRadius={55}
                   label={({ name, value }) => `${name}: ${fmt(value)}`}
                   labelLine={false}
                 >
                   {byCategory.map((c, i) => (
-                    <Cell key={i} fill={c.color} />
+                    <Cell key={i} fill={EXPENSE_PALETTE[i % EXPENSE_PALETTE.length]} />
                   ))}
                 </Pie>
                 <Tooltip
                   formatter={(v) => fmt(Number(v))}
                   contentStyle={{
-                    background: '#141414',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    borderRadius: 8,
+                    background: 'var(--as-bg-elevated)',
+                    border: '1px solid var(--as-border-strong)',
+                    borderRadius: 6,
+                    fontFamily: 'var(--as-font-mono)',
+                    fontSize: '0.8rem',
                   }}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
             <div className="empty-state" style={{ padding: 30 }}>
-              <p>Add expenses to see breakdown</p>
+              <p>No expense data available.</p>
             </div>
           )}
         </div>
@@ -278,10 +373,11 @@ export default function Expenses() {
             <div className="stat-value">{categories.length}</div>
             <button
               className="btn btn-secondary btn-small"
-              style={{ marginTop: 8 }}
+              style={{ marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4 }}
               onClick={() => setShowCatModal(true)}
+              aria-label="Add Category"
             >
-              + Add Category
+              <Plus size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Add Category
             </button>
           </div>
         </div>
@@ -337,8 +433,9 @@ export default function Expenses() {
                       notes: r['Notes'] || null,
                     });
                     created++;
-                  } catch (e: any) {
-                    errors.push(`Row ${i + 2}: ${e.message}`);
+                  } catch (e: unknown) {
+                    const err = e as { message?: string };
+                    errors.push(`Row ${i + 2}: ${err.message || 'Import error'}`);
                   }
                 }
                 return { created, errors };
@@ -351,171 +448,169 @@ export default function Expenses() {
               isOpen={searchOpen}
               setIsOpen={setSearchOpen}
             />
-            <button className="btn btn-primary" onClick={openCreate}>
-              + Add Expense
+            <button
+              className="btn btn-primary"
+              onClick={openCreate}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              aria-label="Add Expense"
+            >
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Add Expense
             </button>
           </div>
         </div>
         {expenses.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                receipt_long
-              </span>
+              <Receipt size={32} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             </div>
-            <h3>No expenses yet</h3>
-            <p>Start adding your monthly bills and expenses.</p>
+            <h3>No expenses recorded.</h3>
+            <p>Zero expense records in the ledger.</p>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Expense"
-                  sortKey="name"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Category"
-                  sortKey="category"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Amount"
-                  sortKey="amount"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Account"
-                  sortKey="account"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Due Day"
-                  sortKey="due_day_of_month"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Type"
-                  sortKey="is_recurring"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <th style={{ width: 140 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAndSortedExpenses.map((e) => {
-                const cat = categories.find((c) => c.id === e.category_id);
-                const acct = accounts.find((a) => a.id === e.account_id);
-                return (
-                  <tr key={e.id}>
-                    <td style={{ fontWeight: 600 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {e.name}
-                        {e.url && (
-                          <a
-                            href={e.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TableHeader
+                    label="Expense"
+                    sortKey="name"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Category"
+                    sortKey="category"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Amount"
+                    sortKey="amount"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Account"
+                    sortKey="account"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Due Day"
+                    sortKey="due_day_of_month"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Type"
+                    sortKey="is_recurring"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <th style={{ width: 140 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedExpenses.map((e) => {
+                  const cat = categories.find((c) => c.id === e.category_id);
+                  const acct = accounts.find((a) => a.id === e.account_id);
+                  return (
+                    <tr key={e.id}>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {e.name}
+                          {e.url && (
+                            <a
+                              href={e.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                color: 'var(--accent)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                textDecoration: 'none',
+                              }}
+                              title="Visit site"
+                              aria-label={`Visit site for ${e.name}`}
+                            >
+                              <ExternalLink size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                            </a>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        {cat && (
+                          <span
+                            className="badge"
                             style={{
-                              color: 'var(--accent)',
+                              background: cat.color + '20',
+                              color: cat.color,
                               display: 'inline-flex',
                               alignItems: 'center',
-                              textDecoration: 'none',
                             }}
-                            title="Visit site"
                           >
-                            <span
-                              className="material-symbols-rounded"
-                              style={{ fontSize: '1.1rem' }}
-                            >
-                              open_in_new
-                            </span>
-                          </a>
+                            {getCategoryIcon(cat.icon, cat.name)}
+                            {cat.name}
+                          </span>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      {cat && (
-                        <span
-                          className="badge"
-                          style={{
-                            background: cat.color + '20',
-                            color: cat.color,
-                            display: 'inline-flex',
-                            alignItems: 'center',
+                      </td>
+                      <td className="amount">
+                        <InlineEdit
+                          value={e.amount}
+                          onSave={async (v) => {
+                            await updateExpenseItem(e.id, 'amount', v);
                           }}
-                        >
+                        />
+                      </td>
+                      <td>
+                        {acct ? (
                           <span
-                            className="material-symbols-rounded"
-                            style={{ fontSize: '1em', marginRight: 4 }}
+                            className="badge badge-blue"
+                            style={{ display: 'inline-flex', alignItems: 'center' }}
                           >
-                            {cat.icon}
-                          </span>{' '}
-                          {cat.name}
-                        </span>
-                      )}
-                    </td>
-                    <td className="amount">
-                      <InlineEdit
-                        value={e.amount}
-                        onSave={async (v) => {
-                          await updateExpenseItem(e.id, 'amount', v);
-                        }}
-                      />
-                    </td>
-                    <td>
-                      {acct ? (
-                        <span
-                          className="badge badge-blue"
-                          style={{ display: 'inline-flex', alignItems: 'center' }}
-                        >
-                          <span
-                            className="material-symbols-rounded"
-                            style={{ fontSize: '1em', marginRight: 4 }}
+                            <Landmark size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />
+                            {acct.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-dim)' }}>—</span>
+                        )}
+                      </td>
+                      <td>{e.due_day_of_month ? `${e.due_day_of_month}th` : '—'}</td>
+                      <td>
+                        {e.is_recurring ? (
+                          <span className="badge badge-blue">Recurring</span>
+                        ) : (
+                          <span className="badge badge-amber">One-time</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            className="btn btn-secondary btn-small"
+                            onClick={() => openEdit(e)}
+                            aria-label={`Edit ${e.name}`}
                           >
-                            account_balance
-                          </span>{' '}
-                          {acct.name}
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-dim)' }}>—</span>
-                      )}
-                    </td>
-                    <td>{e.due_day_of_month ? `${e.due_day_of_month}th` : '—'}</td>
-                    <td>
-                      {e.is_recurring ? (
-                        <span className="badge badge-blue">Recurring</span>
-                      ) : (
-                        <span className="badge badge-amber">One-time</span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-secondary btn-small" onClick={() => openEdit(e)}>
-                          Edit
-                        </button>
-                        <DeleteButton onDelete={() => deleteExpenseItem(e.id)} />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                            Edit
+                          </button>
+                          <DeleteButton
+                            onDelete={() => deleteExpenseItem(e.id)}
+                            ariaLabel={`Delete ${e.name}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -639,10 +734,15 @@ export default function Expenses() {
                     setShowModal(false);
                     resetForm();
                   }}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label={editingId ? 'Save Changes' : 'Add Expense'}
+                >
                   {editingId ? 'Save Changes' : 'Add'}
                 </button>
               </div>
@@ -675,7 +775,7 @@ export default function Expenses() {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Icon (Material Symbol name)</label>
+                  <label>Icon</label>
                   <input
                     value={catForm.icon}
                     onChange={(e) => setCatForm({ ...catForm, icon: e.target.value })}
@@ -688,10 +788,11 @@ export default function Expenses() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowCatModal(false)}
+                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button type="submit" className="btn btn-primary" aria-label="Add Category">
                   Add
                 </button>
               </div>

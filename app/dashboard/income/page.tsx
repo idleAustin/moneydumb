@@ -8,6 +8,12 @@ import ExcelUpload from '../components/ExcelUpload';
 import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
+import {
+  Wallet,
+  Shuffle,
+  Calendar,
+  Sparkles,
+} from 'lucide-react';
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -286,9 +292,7 @@ export default function Income() {
       <div className="card section">
         <div className="card-header">
           <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              payments
-            </span>{' '}
+            <Wallet size={18} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
             Paycheck Sources
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -349,7 +353,11 @@ export default function Income() {
               isOpen={sourcesTable.searchOpen}
               setIsOpen={sourcesTable.setSearchOpen}
             />
-            <button className="btn btn-primary" onClick={() => setShowSourceModal(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowSourceModal(true)}
+              aria-label="Add income source"
+            >
               + Add Source
             </button>
           </div>
@@ -357,12 +365,10 @@ export default function Income() {
         {sources.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                payments
-              </span>
+              <Wallet size={32} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
             </div>
-            <h3>No income sources</h3>
-            <p>Add your paycheck details to get started.</p>
+            <h3>Zero income sources configured.</h3>
+            <p>Register recurring paychecks to establish incoming cashflow telemetry.</p>
           </div>
         ) : (
           <table className="data-table">
@@ -405,7 +411,9 @@ export default function Income() {
                   activeDirection={sourcesTable.sortDirection}
                   onClick={sourcesTable.requestSort}
                 />
-                <th style={{ width: 140 }}></th>
+                <th scope="col" style={{ width: 140 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -440,9 +448,12 @@ export default function Income() {
                   <td>
                     <span className="badge badge-blue">{s.frequency}</span>
                   </td>
-                  <td style={{ color: 'var(--text-muted)' }}>{s.next_pay_date || '—'}</td>
+                  <td style={{ color: 'var(--as-text-muted)' }}>{s.next_pay_date || '—'}</td>
                   <td>
-                    <DeleteButton onDelete={() => deleteSourceItem(s.id)} />
+                    <DeleteButton
+                      onDelete={() => deleteSourceItem(s.id)}
+                      ariaLabel={`Delete income source ${s.name}`}
+                    />
                   </td>
                 </tr>
               ))}
@@ -455,9 +466,13 @@ export default function Income() {
       <div className="card section">
         <div className="card-header">
           <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              shuffle
-            </span>{' '}
+            <Shuffle
+              size={18}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 6, color: 'var(--as-accent-primary)' }}
+            />{' '}
             Paycheck Allocations
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -471,17 +486,18 @@ export default function Income() {
               className="btn btn-primary btn-small"
               onClick={() => setShowAllocModal(true)}
               disabled={sources.length === 0 || accounts.length === 0}
+              aria-label="Add paycheck allocation split"
             >
               + Add Split
             </button>
           </div>
         </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--as-text-muted)', marginBottom: 16 }}>
           Define how each paycheck is split across your bank accounts.
         </p>
         {allocations.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
-            <p>No allocations set up yet.</p>
+            <p>Zero allocations configured. Specify automated splits between accounts.</p>
           </div>
         ) : (
           <table className="data-table">
@@ -516,7 +532,9 @@ export default function Income() {
                   onClick={allocationsTable.requestSort}
                   style={{ textAlign: 'right' }}
                 />
-                <th style={{ width: 140 }}></th>
+                <th scope="col" style={{ width: 140 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -531,7 +549,10 @@ export default function Income() {
                     {a.allocation_type === 'percent' ? `${a.allocation_value}%` : fmt(a.allocation_value)}
                   </td>
                   <td>
-                    <DeleteButton onDelete={() => deleteAllocItem(a.id)} />
+                    <DeleteButton
+                      onDelete={() => deleteAllocItem(a.id)}
+                      ariaLabel="Delete allocation split"
+                    />
                   </td>
                 </tr>
               ))}
@@ -544,9 +565,13 @@ export default function Income() {
       <div className="card section">
         <div className="card-header">
           <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              calendar_today
-            </span>{' '}
+            <Calendar
+              size={18}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 6, color: 'var(--as-accent-primary)' }}
+            />{' '}
             Income Events
           </h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -556,14 +581,18 @@ export default function Income() {
               isOpen={eventsTable.searchOpen}
               setIsOpen={eventsTable.setSearchOpen}
             />
-            <button className="btn btn-primary btn-small" onClick={() => setShowEventModal(true)}>
+            <button
+              className="btn btn-primary btn-small"
+              onClick={() => setShowEventModal(true)}
+              aria-label="Log income event"
+            >
               + Log Income
             </button>
           </div>
         </div>
         {events.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
-            <p>No income events logged yet.</p>
+            <p>Zero income events recorded in ledger.</p>
           </div>
         ) : (
           <table className="data-table">
@@ -612,7 +641,9 @@ export default function Income() {
                   activeDirection={eventsTable.sortDirection}
                   onClick={eventsTable.requestSort}
                 />
-                <th style={{ width: 140 }}></th>
+                <th scope="col" style={{ width: 140 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -620,7 +651,7 @@ export default function Income() {
                 <tr key={e.id}>
                   <td>{e.received_date}</td>
                   <td>{sources.find((s) => s.id === e.income_source_id)?.name || 'One-time'}</td>
-                  <td className="amount" style={{ color: 'var(--accent)' }}>
+                  <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>
                     <InlineEdit
                       value={e.amount}
                       onSave={async (v) => {
@@ -635,14 +666,15 @@ export default function Income() {
                         await updateEventItem(e.id, { account_id: ev.target.value || null });
                       }}
                       style={{
-                        background: 'var(--bg-secondary)',
-                        color: 'var(--text-primary)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: 6,
+                        background: 'var(--as-bg-surface)',
+                        color: 'var(--as-text-primary)',
+                        border: '1px solid var(--as-border-subtle)',
+                        borderRadius: 'var(--as-radius-md)',
                         padding: '4px 8px',
                         fontSize: '0.8rem',
                         cursor: 'pointer',
                       }}
+                      aria-label="Assign account to income event"
                     >
                       <option value="">—</option>
                       {accounts.map((a) => (
@@ -658,19 +690,20 @@ export default function Income() {
                         className="badge badge-amber"
                         style={{ display: 'inline-flex', alignItems: 'center' }}
                       >
-                        <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: '1em', marginRight: 4 }}
-                        >
-                          celebration
-                        </span>{' '}
+                        <Sparkles
+                          size={13}
+                          strokeWidth={2.0}
+                          aria-hidden="true"
+                          focusable="false"
+                          style={{ marginRight: 4 }}
+                        />{' '}
                         Bonus
                       </span>
                     ) : (
                       <span className="badge badge-blue">Regular</span>
                     )}
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
                     <InlineEdit
                       value={e.notes || ''}
                       type="text"
@@ -681,7 +714,10 @@ export default function Income() {
                     />
                   </td>
                   <td>
-                    <DeleteButton onDelete={() => deleteEventItem(e.id)} />
+                    <DeleteButton
+                      onDelete={() => deleteEventItem(e.id)}
+                      ariaLabel={`Delete income event ${e.received_date}`}
+                    />
                   </td>
                 </tr>
               ))}
@@ -766,10 +802,15 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowSourceModal(false)}
+                  aria-label="Cancel source creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Save income source"
+                >
                   Save
                 </button>
               </div>
@@ -852,10 +893,15 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAllocModal(false)}
+                  aria-label="Cancel allocation split creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Save allocation split"
+                >
                   Save
                 </button>
               </div>
@@ -949,10 +995,15 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowEventModal(false)}
+                  aria-label="Cancel income event creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Log income event entry"
+                >
                   Log
                 </button>
               </div>

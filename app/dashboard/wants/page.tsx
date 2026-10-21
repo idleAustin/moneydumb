@@ -6,6 +6,70 @@ import DeleteButton from '../components/DeleteButton';
 import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
+import {
+  Sparkles,
+  BarChart3,
+  Clock,
+  ExternalLink,
+  Check,
+  CheckCircle2,
+  AlertTriangle,
+  AlertOctagon,
+  Info,
+  CircleDot,
+  Circle,
+  ArrowDownCircle,
+  type LucideIcon,
+} from 'lucide-react';
+
+const priorityConfig: Record<string, { label: string; class: string; Icon: LucideIcon }> = {
+  dream: { label: 'Dream', class: 'badge-purple', Icon: Sparkles },
+  high: { label: 'High', class: 'badge-red', Icon: CircleDot },
+  medium: { label: 'Medium', class: 'badge-amber', Icon: Circle },
+  low: { label: 'Low', class: 'badge-green', Icon: ArrowDownCircle },
+};
+
+function renderRecommendation(rec?: string | null) {
+  if (!rec) return null;
+  let Icon = CheckCircle2;
+  let iconColor = 'var(--as-status-success)';
+  const lower = rec.toLowerCase();
+
+  if (rec.includes('\u{26D4}') || lower.includes('costs more than')) {
+    Icon = AlertOctagon;
+    iconColor = 'var(--as-status-error)';
+  } else if (rec.includes('\u{26A0}') || lower.includes('significant expense')) {
+    Icon = AlertTriangle;
+    iconColor = 'var(--as-status-warning)';
+  } else if (rec.includes('\u{1F7E1}') || lower.includes('moderate')) {
+    Icon = Info;
+    iconColor = 'var(--as-status-warning)';
+  } else if (rec.includes('\u{2705}') || lower.includes('affordable')) {
+    Icon = CheckCircle2;
+    iconColor = 'var(--as-status-success)';
+  }
+
+  const cleanText = rec
+    .replace(/[\p{Extended_Pictographic}\u{10000}-\u{10FFFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/[!]/g, '.')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', marginTop: '12px' }}>
+      <Icon
+        size={16}
+        strokeWidth={2.0}
+        aria-hidden="true"
+        focusable="false"
+        style={{ color: iconColor, marginTop: '2px', flexShrink: 0 }}
+      />
+      <span style={{ color: 'var(--as-text-primary)', fontSize: '0.9rem', lineHeight: '1.4' }}>
+        {cleanText}
+      </span>
+    </div>
+  );
+}
 
 const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
@@ -128,20 +192,17 @@ export default function Wants() {
 
   const totalCost = unpurchased.reduce((s, w) => s + Number(w.estimated_cost), 0);
 
-  const priorityConfig: Record<string, { label: string; class: string; icon: string }> = {
-    dream: { label: 'Dream', class: 'badge-purple', icon: 'stars' },
-    high: { label: 'High', class: 'badge-red', icon: 'circle' },
-    medium: { label: 'Medium', class: 'badge-amber', icon: 'circle' },
-    low: { label: 'Low', class: 'badge-green', icon: 'circle' },
-  };
-
   return (
     <div className="fade-in">
       <div className="page-header">
         <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <span className="material-symbols-rounded" style={{ fontSize: '1.2em', marginRight: 8 }}>
-            star
-          </span>{' '}
+          <Sparkles
+            size={20}
+            strokeWidth={2.0}
+            aria-hidden="true"
+            focusable="false"
+            style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+          />{' '}
           Wants Wishlist
         </h2>
         <p>Track things you want to buy and get financial feasibility analysis</p>
@@ -164,17 +225,21 @@ export default function Wants() {
 
       {/* Analysis Result */}
       {analysis && (
-        <div className="ai-summary section" style={{ borderColor: 'var(--accent-green)' }}>
+        <div className="ai-summary section" style={{ borderColor: 'var(--as-border-strong)' }}>
           <h3
             style={{
-              color: 'var(--accent-green)',
+              color: 'var(--as-status-success)',
               display: 'flex',
               alignItems: 'center',
             }}
           >
-            <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-              bar_chart
-            </span>{' '}
+            <BarChart3
+              size={18}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 6 }}
+            />{' '}
             Analysis: {analysis.want.name}
           </h3>
           <div
@@ -182,59 +247,70 @@ export default function Wants() {
             style={{ marginBottom: 16 }}
           >
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--as-text-muted)' }}>
                 Monthly Discretionary
               </div>
               <div
                 style={{
                   fontSize: '1.2rem',
                   fontWeight: 700,
-                  color: 'var(--accent-green)',
+                  color: 'var(--as-status-success)',
+                  fontFamily: 'var(--as-font-mono)',
                 }}
               >
                 {fmt(analysis.monthly_discretionary)}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>% of Income</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--as-text-muted)' }}>% of Income</div>
               <div
                 style={{
                   fontSize: '1.2rem',
                   fontWeight: 700,
-                  color: 'var(--accent-amber)',
+                  color: 'var(--as-status-warning)',
+                  fontFamily: 'var(--as-font-mono)',
                 }}
               >
                 {analysis.cost_as_percent_of_income}%
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Months to Save</div>
-              <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-blue)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--as-text-muted)' }}>Months to Save</div>
+              <div
+                style={{
+                  fontSize: '1.2rem',
+                  fontWeight: 700,
+                  color: 'var(--as-status-info)',
+                  fontFamily: 'var(--as-font-mono)',
+                }}
+              >
                 {analysis.months_to_save}
               </div>
             </div>
           </div>
-          <p>{analysis.recommendation}</p>
+          {renderRecommendation(analysis.recommendation)}
           <p
             style={{
-              color: 'var(--accent-blue)',
+              color: 'var(--as-status-info)',
               display: 'flex',
               alignItems: 'center',
               marginTop: 8,
             }}
           >
-            <span
-              className="material-symbols-rounded"
-              style={{ fontSize: '1em', marginRight: 4 }}
-            >
-              schedule
-            </span>{' '}
+            <Clock
+              size={14}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 4 }}
+            />{' '}
             {analysis.best_purchase_timing}
           </p>
           <button
             className="btn btn-secondary btn-small"
             style={{ marginTop: 12 }}
             onClick={() => setAnalysis(null)}
+            aria-label="Dismiss feasibility analysis"
           >
             Dismiss
           </button>
@@ -252,7 +328,11 @@ export default function Wants() {
               isOpen={wishlistTable.searchOpen}
               setIsOpen={wishlistTable.setSearchOpen}
             />
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              aria-label="Add want item to wishlist"
+            >
               + Add Want
             </button>
           </div>
@@ -261,12 +341,16 @@ export default function Wants() {
         {unpurchased.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                star
-              </span>
+              <Sparkles
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)' }}
+              />
             </div>
-            <h3>No items on your wishlist</h3>
-            <p>Add things you want to buy and get smart recommendations.</p>
+            <h3>Zero items on wishlist.</h3>
+            <p>Track potential acquisitions and inspect discretionary feasibility telemetry.</p>
           </div>
         ) : (
           <table className="data-table">
@@ -301,7 +385,9 @@ export default function Wants() {
                   activeDirection={wishlistTable.sortDirection}
                   onClick={wishlistTable.requestSort}
                 />
-                <th style={{ width: 140 }}></th>
+                <th scope="col" style={{ width: 140 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -309,7 +395,11 @@ export default function Wants() {
                 <tr key={w.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{w.name}</div>
-                    {w.notes && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{w.notes}</div>}
+                    {w.notes && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--as-text-muted)' }}>
+                        {w.notes}
+                      </div>
+                    )}
                     {w.url && (
                       <a
                         href={w.url}
@@ -317,42 +407,48 @@ export default function Wants() {
                         rel="noopener noreferrer"
                         style={{
                           fontSize: '0.75rem',
-                          color: 'var(--accent-blue)',
+                          color: 'var(--as-accent-primary)',
                           display: 'inline-flex',
                           alignItems: 'center',
                           marginTop: 4,
                         }}
                       >
-                        <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: '1.2em', marginRight: 2 }}
-                        >
-                          link
-                        </span>{' '}
+                        <ExternalLink
+                          size={12}
+                          strokeWidth={2.0}
+                          aria-hidden="true"
+                          focusable="false"
+                          style={{ marginRight: 4 }}
+                        />{' '}
                         Link
                       </a>
                     )}
                   </td>
-                  <td className="amount" style={{ color: 'var(--accent-amber)' }}>
+                  <td className="amount" style={{ color: 'var(--as-status-warning)' }}>
                     {fmt(w.estimated_cost)}
                   </td>
                   <td>
-                    <span
-                      className={`badge ${priorityConfig[w.priority]?.class || 'badge-blue'}`}
-                      style={{ display: 'inline-flex', alignItems: 'center' }}
-                    >
-                      {priorityConfig[w.priority]?.icon && (
+                    {(() => {
+                      const cfg = priorityConfig[w.priority] || priorityConfig.medium;
+                      const Icon = cfg.Icon;
+                      return (
                         <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: '1em', marginRight: 4 }}
+                          className={`badge ${cfg.class || 'badge-blue'}`}
+                          style={{ display: 'inline-flex', alignItems: 'center' }}
                         >
-                          {priorityConfig[w.priority].icon}
+                          <Icon
+                            size={12}
+                            strokeWidth={2.0}
+                            aria-hidden="true"
+                            focusable="false"
+                            style={{ marginRight: 4 }}
+                          />
+                          {cfg.label || w.priority}
                         </span>
-                      )}
-                      {priorityConfig[w.priority]?.label || w.priority}
-                    </span>
+                      );
+                    })()}
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
                     {w.created_at?.substring(0, 10)}
                   </td>
                   <td>
@@ -360,6 +456,7 @@ export default function Wants() {
                       <button
                         className="btn btn-secondary btn-small"
                         onClick={() => handleAnalyze(w.id)}
+                        aria-label={`Analyze feasibility for ${w.name}`}
                       >
                         Analyze
                       </button>
@@ -367,16 +464,21 @@ export default function Wants() {
                         className="btn btn-primary btn-small"
                         onClick={() => handlePurchase(w.id)}
                         style={{ display: 'flex', alignItems: 'center' }}
+                        aria-label={`Mark ${w.name} as purchased`}
                       >
-                        <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: '1.2em', marginRight: 2 }}
-                        >
-                          check
-                        </span>{' '}
+                        <Check
+                          size={14}
+                          strokeWidth={2.0}
+                          aria-hidden="true"
+                          focusable="false"
+                          style={{ marginRight: 4 }}
+                        />{' '}
                         Bought
                       </button>
-                      <DeleteButton onDelete={() => deleteWantItem(w.id)} label="×" />
+                      <DeleteButton
+                        onDelete={() => deleteWantItem(w.id)}
+                        ariaLabel={`Delete want: ${w.name}`}
+                      />
                     </div>
                   </td>
                 </tr>
@@ -394,9 +496,13 @@ export default function Wants() {
             style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
           >
             <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
-              <span className="material-symbols-rounded" style={{ marginRight: 6 }}>
-                check_circle
-              </span>{' '}
+              <CheckCircle2
+                size={18}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ marginRight: 6, color: 'var(--as-status-success)' }}
+              />{' '}
               Purchased
             </h3>
             <TableSearch
@@ -438,7 +544,7 @@ export default function Wants() {
                 <tr key={w.id}>
                   <td>{w.name}</td>
                   <td className="amount">{fmt(w.estimated_cost)}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{w.purchased_at?.substring(0, 10)}</td>
+                  <td style={{ color: 'var(--as-text-muted)' }}>{w.purchased_at?.substring(0, 10)}</td>
                 </tr>
               ))}
             </tbody>
@@ -455,6 +561,7 @@ export default function Wants() {
               <div className="form-group">
                 <label>Item Name</label>
                 <input
+                  type="text"
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -476,7 +583,7 @@ export default function Wants() {
                   <label>Priority</label>
                   <select
                     value={form.priority}
-                    onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                    onChange={(e) => setForm({ ...form, priority: e.target.value as any })}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -506,10 +613,15 @@ export default function Wants() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowModal(false)}
+                  aria-label="Cancel want creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Add want to wishlist"
+                >
                   Add
                 </button>
               </div>

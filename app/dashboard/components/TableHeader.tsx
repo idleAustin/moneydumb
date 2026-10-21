@@ -1,4 +1,5 @@
 import React from 'react';
+import { ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react';
 
 interface TableHeaderProps {
   label: string;
@@ -20,23 +21,55 @@ export default function TableHeader({
   style = {},
 }: TableHeaderProps) {
   const isSorted = activeKey === sortKey;
-  const icon = isSorted
-    ? activeDirection === 'asc'
-      ? 'arrow_upward'
-      : 'arrow_downward'
-    : 'unfold_more';
+
+  const renderSortIcon = () => {
+    if (!isSorted) {
+      return (
+        <ChevronsUpDown
+          size={14}
+          strokeWidth={2.0}
+          className="sort-indicator-icon"
+          aria-hidden="true"
+          focusable="false"
+          style={{ opacity: 0.35 }}
+        />
+      );
+    }
+    if (activeDirection === 'asc') {
+      return (
+        <ArrowUp
+          size={14}
+          strokeWidth={2.0}
+          className="sort-indicator-icon"
+          aria-hidden="true"
+          focusable="false"
+          style={{ color: 'var(--as-accent-primary)' }}
+        />
+      );
+    }
+    return (
+      <ArrowDown
+        size={14}
+        strokeWidth={2.0}
+        className="sort-indicator-icon"
+        aria-hidden="true"
+        focusable="false"
+        style={{ color: 'var(--as-accent-primary)' }}
+      />
+    );
+  };
 
   return (
     <th
+      scope="col"
       onClick={() => onClick(sortKey)}
       className={`sortable ${isSorted ? 'active-sort' : ''} ${className}`}
       style={{ cursor: 'pointer', userSelect: 'none', ...style }}
+      aria-sort={isSorted ? (activeDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-        {label}
-        <span className="material-symbols-rounded sort-indicator-icon" style={{ fontSize: '0.9rem' }}>
-          {icon}
-        </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+        <span>{label}</span>
+        {renderSortIcon()}
       </span>
     </th>
   );

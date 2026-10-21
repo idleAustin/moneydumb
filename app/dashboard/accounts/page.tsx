@@ -2,6 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import {
+  Landmark,
+  PiggyBank,
+  TrendingUp,
+} from 'lucide-react';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
 import ExcelUpload from '../components/ExcelUpload';
@@ -18,7 +23,6 @@ const fmt = (n: number) =>
 
 const fmtDate = (d: string | null) => {
   if (!d) return null;
-  // Handle Z or parse offset
   const dateStr = d.endsWith('Z') ? d : d + 'Z';
   try {
     return new Date(dateStr).toLocaleString('en-US', {
@@ -114,21 +118,9 @@ export default function Accounts() {
     .reduce((s, a) => s + Number(a.balance), 0);
 
   const typeIcons: Record<string, React.ReactNode> = {
-    checking: (
-      <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-        account_balance
-      </span>
-    ),
-    savings: (
-      <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-        savings
-      </span>
-    ),
-    investment: (
-      <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-        trending_up
-      </span>
-    ),
+    checking: <Landmark size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />,
+    savings: <PiggyBank size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />,
+    investment: <TrendingUp size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />,
   };
 
   return (
@@ -203,7 +195,11 @@ export default function Accounts() {
               isOpen={searchOpen}
               setIsOpen={setSearchOpen}
             />
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              aria-label="Add bank account"
+            >
               + Add Account
             </button>
           </div>
@@ -212,14 +208,22 @@ export default function Accounts() {
         {accounts.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <span className="material-symbols-rounded" style={{ fontSize: 'inherit' }}>
-                account_balance
-              </span>
+              <Landmark
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)' }}
+              />
             </div>
-            <h3>No accounts yet</h3>
-            <p>Add your bank accounts to start tracking your finances.</p>
-            <button className="btn btn-primary" onClick={() => setShowModal(true)}>
-              Add Your First Account
+            <h3>Zero accounts recorded.</h3>
+            <p>Add bank and investment accounts to monitor balances.</p>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              aria-label="Add bank account"
+            >
+              Add Account
             </button>
           </div>
         ) : (
@@ -262,7 +266,9 @@ export default function Accounts() {
                   activeDirection={sortDirection}
                   onClick={requestSort}
                 />
-                <th style={{ width: 140 }}></th>
+                <th scope="col" style={{ width: 140 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -278,12 +284,7 @@ export default function Accounts() {
                       }}
                     >
                       {typeIcons[a.account_type] || (
-                        <span
-                          className="material-symbols-rounded"
-                          style={{ fontSize: 'inherit' }}
-                        >
-                          account_balance
-                        </span>
+                        <Landmark size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                       )}
                     </span>{' '}
                     <InlineEdit
@@ -316,10 +317,10 @@ export default function Accounts() {
                       }}
                     />
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
                     {fmtDate(a.balance_updated_at) || '—'}
                   </td>
-                  <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
                     <InlineEdit
                       value={a.notes || ''}
                       type="text"
@@ -330,7 +331,10 @@ export default function Accounts() {
                     />
                   </td>
                   <td>
-                    <DeleteButton onDelete={() => deleteAccountItem(a.id)} />
+                    <DeleteButton
+                      onDelete={() => deleteAccountItem(a.id)}
+                      ariaLabel={`Delete account ${a.name}`}
+                    />
                   </td>
                 </tr>
               ))}
@@ -359,7 +363,7 @@ export default function Accounts() {
                   <label>Type</label>
                   <select
                     value={form.account_type}
-                    onChange={(e) => setForm({ ...form, account_type: e.target.value })}
+                    onChange={(e) => setForm({ ...form, account_type: e.target.value as any })}
                   >
                     <option value="checking">Checking</option>
                     <option value="savings">Savings</option>
@@ -391,10 +395,15 @@ export default function Accounts() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowModal(false)}
+                  aria-label="Cancel account creation"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  aria-label="Submit account creation"
+                >
                   Add Account
                 </button>
               </div>

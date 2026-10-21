@@ -1,0 +1,281 @@
+/* ============================================
+   BudgetFlow — Data Display Widgets, Status Indicators & Summary Cards
+   Minimalist Dark Design System
+   ============================================ */
+
+/* ========== STAT CARDS ========== */
+.stat-card {
+  background: var(--as-bg-surface);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-md);
+  padding: 20px;
+  transition: border-color var(--as-duration-normal) var(--as-ease-snap);
+}
+.stat-card:hover {
+  border-color: var(--as-border-strong);
+}
+.stat-card .stat-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.025em;
+}
+.stat-card .stat-value {
+  font-family: var(--as-font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 6px;
+  letter-spacing: -0.04em;
+}
+.stat-card .stat-sub {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.stat-green .stat-value { color: var(--emerald); }
+.stat-blue .stat-value { color: var(--blue); }
+.stat-amber .stat-value { color: var(--accent); }
+.stat-red .stat-value { color: var(--rose); }
+.stat-purple .stat-value { color: var(--purple); }
+
+/* ========== BADGES ========== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  border-radius: var(--r-pill);
+}
+.badge-green { background: var(--emerald-dim); color: var(--emerald); }
+.badge-amber { background: var(--amber-dim); color: var(--amber); }
+.badge-red { background: var(--rose-dim); color: var(--rose); }
+.badge-blue { background: var(--blue-dim); color: var(--blue); }
+.badge-purple { background: var(--purple-dim); color: var(--purple); }
+
+/* ========== PROGRESS BAR ========== */
+.progress-bar {
+  height: 4px;
+  background: var(--bg-highlight);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.progress-bar .progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s var(--ease);
+}
+.progress-green .progress-fill { background: var(--as-status-success); box-shadow: 0 0 8px var(--as-status-success-bg); }
+.progress-amber .progress-fill { background: var(--as-status-warning); box-shadow: 0 0 8px var(--as-status-warning-bg); }
+.progress-red .progress-fill { background: var(--as-status-error); box-shadow: 0 0 8px var(--as-status-error-bg); }
+
+/* ========== ALERTS ========== */
+.alert {
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  margin-bottom: 10px;
+  border: 1px solid var(--as-border-subtle);
+  border-left-width: 2px;
+  background: var(--as-bg-surface);
+  border-radius: 0 var(--as-radius-sm) var(--as-radius-sm) 0;
+}
+.alert-info { border-color: var(--blue); color: var(--text-secondary); }
+.alert-warning { border-color: var(--accent); color: var(--text-secondary); }
+.alert-danger { border-color: var(--rose); color: var(--text-secondary); }
+
+/* ========== ENVELOPE CARDS ========== */
+.envelope-card {
+  background: var(--as-bg-surface);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-md);
+  padding: 20px;
+  transition: border-color var(--as-duration-normal) var(--as-ease-snap);
+}
+.envelope-card:hover {
+  border-color: var(--as-border-strong);
+}
+.envelope-card .envelope-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+.envelope-card .envelope-amounts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.envelope-card .envelope-amounts .spent {
+  font-family: var(--as-font-mono);
+  font-weight: 500;
+}
+
+/* ========== AI SUMMARY — Premium Glass Card ========== */
+.ai-summary {
+  background: var(--as-bg-surface);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-md);
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.ai-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--as-accent-primary), transparent);
+  opacity: 0.6;
+}
+.ai-summary h3 {
+  font-family: var(--as-font-heading);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+.ai-summary p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.7;
+}
+.ai-grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--accent-dim);
+  border-radius: var(--r-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 10px;
+  border: 1px solid var(--as-border-subtle);
+}
+
+/* ========== EMPTY STATE ========== */
+.empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-dim);
+}
+.empty-state .empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 14px;
+  opacity: 0.6;
+  color: var(--accent);
+}
+.empty-state h3 {
+  font-family: var(--as-font-heading);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.empty-state p {
+  font-size: 0.82rem;
+  margin-bottom: 18px;
+  color: var(--text-muted);
+}
+
+/* ========== SECTION SPACING ========== */
+.section { margin-bottom: 24px; }
+.section-title {
+  font-family: var(--as-font-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ========== ACCOUNT BARS ========== */
+.account-bars { display: flex; flex-direction: column; gap: 0; }
+.account-bars .ab-total {
+  font-family: var(--as-font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.03em;
+  margin-bottom: 4px;
+}
+.account-bars .ab-total-sub {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+.account-bars .ab-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s var(--ease);
+  cursor: default;
+}
+.account-bars .ab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.account-bars .ab-info {
+  flex: 1;
+  min-width: 0;
+}
+.account-bars .ab-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.account-bars .ab-bar-track {
+  height: 4px;
+  background: var(--bg-highlight);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.account-bars .ab-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.8s var(--ease);
+}
+.account-bars .ab-values {
+  text-align: right;
+  flex-shrink: 0;
+}
+.account-bars .ab-amount {
+  font-family: var(--as-font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+.account-bars .ab-pct {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.account-bars .ab-section-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0.025em;
+  margin-top: 14px;
+  margin-bottom: 4px;
+}

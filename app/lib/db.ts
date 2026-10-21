@@ -16,6 +16,7 @@ function getDb() {
   if (isSqlite) {
     if (!sqliteDb) {
       // Dynamic require — prevents Vercel from bundling the native C++ module
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const Database = require('better-sqlite3');
 
       const dbPath = path.resolve(process.cwd(), process.env.SQLITE_DB_PATH || 'moneydumb.db');
@@ -116,7 +117,7 @@ export async function sql(strings: TemplateStringsArray, ...values: any[]): Prom
         return { rows };
       }
     } catch (error) {
-      console.error('Database Error (SQLite Template):', error, '\nQuery:', strings.join('?'), '\nValues:', values);
+      console.error('Database Error (SQLite Template):', error, '\nQuery:', strings.join('?'));
       throw new Error(`SQLite query execution failed: ${(error as Error).message}`);
     }
   } else {

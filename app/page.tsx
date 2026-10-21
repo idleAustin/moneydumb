@@ -1,15 +1,53 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { Compass, Loader2, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 import { authenticate, loginDemoUser } from '@/app/lib/actions';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [loadingAuth, setLoadingAuth] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleDemoClick = async () => {
-    setLoading(true);
-    await loginDemoUser();
+    setLoadingDemo(true);
+    setErrorMessage('');
+    try {
+      const res = await loginDemoUser();
+      if (res?.success) {
+        window.location.href = '/dashboard/this-month';
+      } else {
+        setErrorMessage(res?.message || 'Sandbox initialization failed');
+        setLoadingDemo(false);
+      }
+    } catch (err) {
+      console.error('Sandbox error:', err);
+      setErrorMessage('Sandbox session initialization failed');
+      setLoadingDemo(false);
+    }
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoadingAuth(true);
+    setErrorMessage('');
+
+    const formData = new FormData(e.currentTarget);
+    try {
+      const res = await authenticate(formData);
+      if (res?.success) {
+        window.location.href = '/dashboard/this-month';
+      } else {
+        setErrorMessage(res?.message || 'Invalid identity or passcode');
+        setLoadingAuth(false);
+      }
+    } catch (err) {
+      console.error('Auth error:', err);
+      setErrorMessage('Authentication service unavailable');
+      setLoadingAuth(false);
+    }
   };
 
   return (
@@ -21,54 +59,22 @@ export default function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px',
-        backgroundColor: '#0A0A0F',
-        fontFamily: "'Inter', sans-serif",
+        backgroundColor: 'var(--as-bg-base)',
+        fontFamily: 'var(--as-font-body)',
         position: 'relative',
         overflow: 'hidden'
       }}
     >
-      {/* Ambient glowing background orbs */}
-      <div 
-        className="ambient-orb"
-        style={{
-          position: 'absolute',
-          top: '-150px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: '600px',
-          height: '600px',
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.05) 0%, transparent 70%)',
-          filter: 'blur(100px)',
-          pointerEvents: 'none',
-          zIndex: 0
-        }}
-      />
-      <div 
-        className="ambient-orb"
-        style={{
-          position: 'absolute',
-          bottom: '-200px',
-          right: '-100px',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(245, 158, 11, 0.04) 0%, transparent 70%)',
-          filter: 'blur(120px)',
-          pointerEvents: 'none',
-          zIndex: 0
-        }}
-      />
-
       {/* Header section */}
       <div style={{ textAlign: 'center', marginBottom: '32px', zIndex: 10 }}>
         <h1 
           style={{
-            fontFamily: "'Space Grotesk', sans-serif",
-            fontSize: '2.5rem',
+            fontFamily: 'var(--as-font-heading)',
+            fontSize: 'clamp(1.75rem, 6vw, 2.25rem)',
             fontWeight: 800,
-            color: '#FAFAFA',
+            color: 'var(--as-text-primary)',
             letterSpacing: '-0.03em',
-            margin: 0,
-            textShadow: '0 0 30px rgba(245, 158, 11, 0.3)'
+            margin: 0
           }}
         >
           MONEY_DUMB
@@ -76,11 +82,12 @@ export default function LoginPage() {
         <p 
           style={{
             fontSize: '0.8rem',
-            color: '#A1A1AA',
+            color: 'var(--as-text-secondary)',
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
             marginTop: '8px',
-            fontWeight: 500
+            fontWeight: 500,
+            fontFamily: 'var(--as-font-mono)'
           }}
         >
           Financial Command Center
@@ -92,111 +99,156 @@ export default function LoginPage() {
         style={{
           width: '100%',
           maxWidth: '420px',
-          backgroundColor: 'rgba(18, 18, 26, 0.65)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          borderRadius: '16px',
-          padding: '40px',
-          boxShadow: '0 20px 25px rgba(0, 0, 0, 0.4), 0 0 40px rgba(245, 158, 11, 0.03)',
+          backgroundColor: 'var(--as-bg-surface)',
+          border: '1px solid var(--as-border-subtle)',
+          borderRadius: 'var(--as-radius-lg)',
+          padding: 'clamp(20px, 5vw, 40px)',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
           zIndex: 10
         }}
       >
         {/* Sandbox quick access */}
-        <div style={{ marginBottom: '32px', textAlign: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '24px' }}>
-          <p style={{ fontSize: '0.75rem', color: '#71717A', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', fontWeight: 600 }}>
-            Want to explore features instantly?
+        <div style={{ marginBottom: '32px', textAlign: 'center', borderBottom: '1px solid var(--as-border-subtle)', paddingBottom: '24px' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--as-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', fontWeight: 600, fontFamily: 'var(--as-font-mono)' }}>
+            Preloaded sandbox environment
           </p>
           <button 
+            type="button"
             onClick={handleDemoClick}
-            disabled={loading}
+            disabled={loadingDemo || loadingAuth}
+            aria-label={loadingDemo ? 'Initializing sandbox session' : 'Enter sandbox mode'}
             style={{
               width: '100%',
-              backgroundColor: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              color: '#FBBF24',
+              backgroundColor: 'var(--as-accent-muted)',
+              border: '1px solid var(--as-border-subtle)',
+              color: 'var(--as-accent-primary)',
               padding: '12px 20px',
-              borderRadius: '8px',
+              borderRadius: 'var(--as-radius-md)',
               fontSize: '0.8rem',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s ease',
+              cursor: (loadingDemo || loadingAuth) ? 'not-allowed' : 'pointer',
+              transition: 'all var(--as-duration-normal) var(--as-ease-snap)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px'
             }}
             onMouseOver={(e) => {
-              if (!loading) {
-                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.15)';
-                e.currentTarget.style.borderColor = '#F59E0B';
-                e.currentTarget.style.boxShadow = '0 0 15px rgba(245, 158, 11, 0.1)';
+              if (!loadingDemo && !loadingAuth) {
+                e.currentTarget.style.backgroundColor = 'rgba(132, 204, 22, 0.2)';
+                e.currentTarget.style.borderColor = 'var(--as-accent-primary)';
+                e.currentTarget.style.boxShadow = '0 0 12px var(--as-accent-glow)';
               }
             }}
             onMouseOut={(e) => {
-              if (!loading) {
-                e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
-                e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.3)';
+              if (!loadingDemo && !loadingAuth) {
+                e.currentTarget.style.backgroundColor = 'var(--as-accent-muted)';
+                e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
                 e.currentTarget.style.boxShadow = 'none';
               }
             }}
           >
-            {loading ? (
+            {loadingDemo ? (
               <>
-                <span 
-                  style={{
-                    display: 'inline-block',
-                    width: '12px',
-                    height: '12px',
-                    border: '2px solid rgba(245,158,11,0.3)',
-                    borderTopColor: '#F59E0B',
-                    borderRadius: '50%',
-                    animation: 'spin 0.6s linear infinite'
-                  }}
+                <Loader2
+                  size={16}
+                  strokeWidth={2.0}
+                  className="animate-spin"
+                  aria-hidden="true"
+                  focusable="false"
                 />
-                Launching Sandbox...
+                Initializing Sandbox...
               </>
             ) : (
               <>
-                <span className="material-symbols-rounded" style={{ fontSize: '1.1rem' }}>explore</span>
+                <Compass
+                  size={16}
+                  strokeWidth={2.0}
+                  aria-hidden="true"
+                  focusable="false"
+                />
                 Enter Sandbox Mode
               </>
             )}
           </button>
         </div>
 
+        {/* Error message state */}
+        {errorMessage && (
+          <div 
+            style={{
+              marginBottom: '20px',
+              backgroundColor: 'var(--as-status-error-bg)',
+              border: '1px solid var(--as-status-error)',
+              borderRadius: 'var(--as-radius-md)',
+              padding: '12px',
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
+            }}
+          >
+            <AlertCircle
+              size={16}
+              strokeWidth={2.0}
+              color="var(--as-status-error)"
+              aria-hidden="true"
+              focusable="false"
+            />
+            <p 
+              style={{ 
+                fontSize: '0.78rem', 
+                color: 'var(--as-status-error)', 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.05em', 
+                margin: 0,
+                fontFamily: 'var(--as-font-mono)'
+              }}
+            >
+              {errorMessage}
+            </p>
+          </div>
+        )}
+
         {/* Regular Login Form */}
-        <form action={authenticate} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Identity input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.75rem', color: '#A1A1AA', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            <label 
+              htmlFor="login-username"
+              style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
+            >
               Identity (Username)
             </label>
             <input
+              id="login-username"
               name="username"
               type="text"
               placeholder="Enter your username"
               required
+              disabled={loadingAuth || loadingDemo}
               style={{
                 width: '100%',
-                backgroundColor: '#12121A',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                color: '#FAFAFA',
+                backgroundColor: 'var(--as-bg-base)',
+                border: '1px solid var(--as-border-subtle)',
+                borderRadius: 'var(--as-radius-md)',
+                color: 'var(--as-text-primary)',
                 padding: '12px 14px',
-                fontSize: '0.85rem',
+                fontSize: '1rem',
                 outline: 'none',
-                transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                transition: 'border-color var(--as-duration-normal) var(--as-ease-snap), box-shadow var(--as-duration-normal) var(--as-ease-snap)'
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = '#F59E0B';
-                e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.1)';
+                e.currentTarget.style.borderColor = 'var(--as-border-focus)';
+                e.currentTarget.style.boxShadow = '0 0 0 1px var(--as-accent-primary)';
               }}
               onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
             />
@@ -204,57 +256,74 @@ export default function LoginPage() {
 
           {/* Passcode input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-            <label style={{ fontSize: '0.75rem', color: '#A1A1AA', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+            <label 
+              htmlFor="login-password"
+              style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
+            >
               Passcode
             </label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
+                id="login-password"
                 name="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 required
+                disabled={loadingAuth || loadingDemo}
                 style={{
                   width: '100%',
-                  backgroundColor: '#12121A',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '8px',
-                  color: '#FAFAFA',
+                  backgroundColor: 'var(--as-bg-base)',
+                  border: '1px solid var(--as-border-subtle)',
+                  borderRadius: 'var(--as-radius-md)',
+                  color: 'var(--as-text-primary)',
                   padding: '12px 14px',
-                  paddingRight: '40px',
-                  fontSize: '0.85rem',
+                  paddingRight: '48px',
+                  fontSize: '1rem',
                   outline: 'none',
-                  transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+                  transition: 'border-color var(--as-duration-normal) var(--as-ease-snap), box-shadow var(--as-duration-normal) var(--as-ease-snap)'
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = '#F59E0B';
-                  e.currentTarget.style.boxShadow = '0 0 10px rgba(245, 158, 11, 0.1)';
+                  e.currentTarget.style.borderColor = 'var(--as-border-focus)';
+                  e.currentTarget.style.boxShadow = '0 0 0 1px var(--as-accent-primary)';
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                  e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? 'Hide passcode' : 'Show passcode'}
                 style={{
                   position: 'absolute',
-                  right: '12px',
+                  right: '2px',
                   top: '50%',
                   transform: 'translateY(-50%)',
+                  width: '44px',
+                  height: '44px',
                   background: 'none',
                   border: 'none',
-                  color: '#A1A1AA',
+                  color: 'var(--as-text-secondary)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  padding: 0
+                  padding: 0,
+                  transition: 'color var(--as-duration-fast) var(--as-ease-snap)'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = 'var(--as-text-primary)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = 'var(--as-text-secondary)';
                 }}
               >
-                <span className="material-symbols-rounded" style={{ fontSize: '1.2rem' }}>
-                  {showPassword ? 'visibility_off' : 'visibility'}
-                </span>
+                {showPassword ? (
+                  <EyeOff size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                ) : (
+                  <Eye size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                )}
               </button>
             </div>
           </div>
@@ -262,55 +331,87 @@ export default function LoginPage() {
           {/* Authenticate Button */}
           <button 
             type="submit"
+            disabled={loadingAuth || loadingDemo}
+            aria-label={loadingAuth ? 'Authenticating credentials' : 'Authenticate session'}
             style={{
               width: '100%',
-              backgroundColor: '#F59E0B',
+              backgroundColor: (loadingAuth || loadingDemo) ? 'var(--as-accent-muted)' : 'var(--as-accent-primary)',
               border: 'none',
-              color: '#0A0A0F',
+              color: (loadingAuth || loadingDemo) ? 'var(--as-accent-primary)' : 'var(--as-accent-text)',
               padding: '14px',
-              borderRadius: '8px',
+              borderRadius: 'var(--as-radius-md)',
               fontSize: '0.85rem',
               fontWeight: 700,
               textTransform: 'uppercase',
               letterSpacing: '0.08em',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              cursor: (loadingAuth || loadingDemo) ? 'not-allowed' : 'pointer',
+              transition: 'all var(--as-duration-normal) var(--as-ease-snap)',
               marginTop: '10px',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)'
+              boxShadow: (loadingAuth || loadingDemo) ? 'none' : '0 0 12px var(--as-accent-glow)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px'
             }}
             onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = '#FBBF24';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-              e.currentTarget.style.boxShadow = '0 6px 16px rgba(245, 158, 11, 0.3)';
+              if (!loadingAuth && !loadingDemo) {
+                e.currentTarget.style.backgroundColor = 'var(--as-accent-hover)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 0 16px var(--as-accent-glow)';
+              }
             }}
             onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#F59E0B';
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(245, 158, 11, 0.2)';
+              if (!loadingAuth && !loadingDemo) {
+                e.currentTarget.style.backgroundColor = 'var(--as-accent-primary)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 0 12px var(--as-accent-glow)';
+              }
             }}
           >
-            Authenticate
+            {loadingAuth ? (
+              <>
+                <Loader2
+                  size={16}
+                  strokeWidth={2.0}
+                  className="animate-spin"
+                  aria-hidden="true"
+                  focusable="false"
+                />
+                Authenticating...
+              </>
+            ) : (
+              'Authenticate'
+            )}
           </button>
         </form>
 
         {/* Identity Registration Link */}
         <div style={{ marginTop: '28px', textAlign: 'center' }}>
-          <a 
+          <Link 
             href="/register" 
+            aria-label="Create new identity registration"
             style={{
               fontSize: '0.75rem',
-              color: '#71717A',
+              color: 'var(--as-text-muted)',
               textDecoration: 'none',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
               fontWeight: 500,
-              transition: 'color 0.2s ease'
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'color var(--as-duration-fast) var(--as-ease-snap)'
             }}
-            onMouseOver={(e) => e.currentTarget.style.color = '#F59E0B'}
-            onMouseOut={(e) => e.currentTarget.style.color = '#71717A'}
+            onMouseOver={(e) => {
+              e.currentTarget.style.color = 'var(--as-accent-primary)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.color = 'var(--as-text-muted)';
+            }}
           >
-            Create New Identity &rarr;
-          </a>
+            <span>Create New Identity</span>
+            <ArrowRight size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+          </Link>
         </div>
 
       </div>
@@ -318,20 +419,22 @@ export default function LoginPage() {
       {/* Page Footer */}
       <div 
         style={{
-          position: 'fixed',
-          bottom: '24px',
+          marginTop: '24px',
+          position: 'relative',
+          zIndex: 10,
+          textAlign: 'center',
           fontSize: '0.65rem',
-          color: '#52525B',
+          color: 'var(--as-text-muted)',
           textTransform: 'uppercase',
           letterSpacing: '0.15em',
           fontWeight: 600,
-          zIndex: 10
+          fontFamily: 'var(--as-font-mono)'
         }}
       >
         SECURE_CONNECTION // ACTIVE
       </div>
 
-      {/* Inject loader spin style keyframes dynamically */}
+      {/* Keyframes for spin loader */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes spin {
           0% { transform: rotate(0deg); }

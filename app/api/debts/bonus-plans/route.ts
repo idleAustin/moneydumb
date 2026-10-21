@@ -55,6 +55,18 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Missing total amount' }, { status: 400 });
     }
 
+    if (income_event_id) {
+      const eventCheck = await sql`
+        SELECT ie.id FROM income_events ie
+        LEFT JOIN accounts a ON ie.account_id = a.id
+        LEFT JOIN income_sources s ON ie.income_source_id = s.id
+        WHERE ie.id = ${income_event_id} AND (a.user_id = ${userId} OR s.user_id = ${userId})
+      `;
+      if (eventCheck.rows.length === 0) {
+        return Response.json({ error: 'Income event not found' }, { status: 404 });
+      }
+    }
+
     const id = crypto.randomUUID();
     const amt = parseFloat(total_amount) || 0.0;
 

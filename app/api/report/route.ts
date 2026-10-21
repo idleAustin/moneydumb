@@ -1,33 +1,32 @@
-import { sql } from '@vercel/postgres';
-import { cookies } from 'next/headers';
+import { getAuthUserId } from '@/app/lib/auth';
+import { sql } from '@/app/lib/db';
 import * as XLSX from 'xlsx';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get('session')?.value;
+  const userId = await getAuthUserId();
 
   if (!userId) {
     return new Response('Unauthorized', { status: 401 });
   }
 
   try {
-    // --- 1. FETCH BANK DATA ---
-    const banksResult = await sql`
+    // --- 1. FETCH ACCOUNT DATA ---
+    const accountsResult = await sql`
       SELECT 
-        b.name, 
-        b.current_balance,
-        COALESCE(SUM(e.amount), 0) as pending_total
-      FROM banks b
-      LEFT JOIN expenses e ON b.id = e.bank_id 
-        AND e.status IN ('not-paid', 'pending') 
-        AND e.is_recurring = FALSE
-      WHERE b.user_id = ${userId}
-      GROUP BY b.id
-      ORDER BY b.name ASC
+        a.name, 
+        a.balance AS current_balance,
+        COALESCE((
+          SELECT SUM(e.amount) 
+          FROM expenses e 
+          WHERE e.account_id = a.id AND e.user_id = ${userId}
+        ), 0) AS pending_total
+      FROM accounts a
+      WHERE a.user_id = ${userId}
+      ORDER BY a.name ASC
     `;
 
-    // Format Bank Data for Sheet 1
-    const bankSheetData = banksResult.rows.map(b => ({
+    // Format Account Data for Sheet 1
+    const bankSheetData = accountsResult.rows.map(b => ({
       'Bank Name': b.name,
       'Total Assets': Number(b.current_balance),
       'Pending Deductions': Number(b.pending_total),
@@ -37,27 +36,27 @@ export async function GET() {
     // --- 2. FETCH EXPENSE DATA ---
     const expensesResult = await sql`
       SELECT 
-        e.due_date,
-        e.name as description,
-        t.name as category,
-        b.name as source_bank,
-        e.status,
+        e.due_day_of_month,
+        e.created_at,
+        e.name AS description,
+        c.name AS category,
+        a.name AS source_bank,
+        e.is_recurring,
         e.amount
       FROM expenses e
-      LEFT JOIN banks b ON e.bank_id = b.id
-      LEFT JOIN expense_types t ON e.type_id = t.id
-      WHERE e.user_id = ${userId} 
-      AND e.is_recurring = FALSE
-      ORDER BY e.due_date DESC
+      LEFT JOIN accounts a ON e.account_id = a.id AND a.user_id = ${userId}
+      LEFT JOIN expense_categories c ON e.category_id = c.id AND c.user_id = ${userId}
+      WHERE e.user_id = ${userId}
+      ORDER BY e.created_at DESC
     `;
 
     // Format Expense Data for Sheet 2
     const expenseSheetData = expensesResult.rows.map(e => ({
-      'Due Date': new Date(e.due_date).toLocaleDateString(),
+      'Due Date': e.due_day_of_month ? `Day ${e.due_day_of_month}` : (e.created_at ? new Date(e.created_at).toLocaleDateString() : 'N/A'),
       'Description': e.description,
-      'Category': e.category,
-      'Source Bank': e.source_bank,
-      'Status': e.status ? e.status.toUpperCase() : 'PENDING',
+      'Category': e.category || 'Uncategorized',
+      'Source Bank': e.source_bank || 'Unassigned',
+      'Status': e.is_recurring ? 'RECURRING' : 'ONE-OFF',
       'Amount': Number(e.amount)
     }));
 
@@ -82,7 +81,7 @@ export async function GET() {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
     const ts = now.getTime(); // Timestamp
-    const filename = `${userId}_spent_report_${dateStr}_${ts}.xlsx`;
+    const filename = `spent_report_${dateStr}_${ts}.xlsx`;
 
     // --- 5. RETURN RESPONSE ---
     return new Response(buf, {

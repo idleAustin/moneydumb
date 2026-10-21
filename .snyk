@@ -1,0 +1,12 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.1
+ignore:
+  SNYK-JS-XLSX-6252523:
+    - '*':
+        reason: 'xlsx@0.18.5 is the latest version published on npm; only authenticated users parse local template spreadsheets.'
+        expires: 2027-12-31T00:00:00.000Z
+  SNYK-JS-XLSX-5457926:
+    - '*':
+        reason: 'xlsx@0.18.5 is the latest version published on npm; only authenticated users parse local template spreadsheets.'
+        expires: 2027-12-31T00:00:00.000Z
+patch: {}

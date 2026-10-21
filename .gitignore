@@ -1,60 +1,103 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ==========================================
+# money-dumb .gitignore
+# ==========================================
 
-# dependencies
-/node_modules
-/.pnp
+# ── Boilerplate & Workspace Exclusions ────
+boilerplate/
+.boilerplate/
+reference-docs/
+.kennel-hub/
+.agents/teamwork/
+PROJECT.md
+TEST_INFRA.md
+TEST_READY.md
+
+# ── Dependencies ──────────────────────────
+node_modules/
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+.pnpm-store/
+.npm/
 
-# testing
-/coverage
+# ── Environment & Secrets ─────────────────
+# Secrets & local environment variables (Doppler handles these)
+.env
+.env.*
+!.env.example
 
-# next.js
+# GCP & Cloud Credentials Keys
+*service-account*.json
+*credentials*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Doppler, Wrangler & Vercel Local State
+.doppler/
+.wrangler/
+.vercel
+
+# ── Database & Local Backups ──────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/backups/
+
+# ── Build & Output Directories ────────────
 /.next/
 /out/
+/build/
+/dist/
+next-env.d.ts
+*.tsbuildinfo
 
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# ── Cache & Temporary Files ───────────────
+.cache/
+.temp/
+tmp/
+*.tmp
+*.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.eslintcache
+notes.md
+preview-notes.md
 
-# env files
-.env*
-.env*.local
+# ── Operating System (macOS / Google Drive)
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# database files
-*.db
-*.db-shm
-*.db-wal
-/backups/
-
-# editor swap/temp files
+# ── IDEs & Editors ────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+.idea/
 *.swp
 *.swo
 *.swn
 *~
-.vscode/
-.idea/
 
-# OS files
-.DS_Store
-Thumbs.db
+# ── Testing & Coverage ────────────────────
+/coverage/
+.nyc_output/
+playwright-report/
+test-results/

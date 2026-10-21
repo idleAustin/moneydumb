@@ -1,44 +1,174 @@
 @import "tailwindcss";
 
 @theme {
-  /* Define our custom Retro colors */
-  --color-retro-black: #050505;
-  --color-retro-green: #33ff00;
-  --color-retro-dim: #1a8000;
-  --color-retro-amber: #ffb000;
-  --color-retro-red: #ff3333;
-  --color-retro-gray: #333333;
+  /* idleAustin Retro color bridge (Pure Obsidian + Electric Lime palette) */
+  --color-retro-black: #0a0a0c;
+  --color-retro-green: #84cc16;
+  --color-retro-dim: #65a30d;
+  --color-retro-amber: var(--as-status-warning);
+  --color-retro-red: #f43f5e;
+  --color-retro-gray: #22222a;
 
-  /* Force our font */
-  --font-mono: "IBM Plex Mono", monospace;
+  /* idleAustin Typography Font Tokens */
+  --font-mono: 'Fira Code', monospace;
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Geist', sans-serif;
 }
 
-/* Global Styles */
+/* ========================================================
+   idleAustin — Universal Design Tokens v1.0.0
+   Brand: Austin Smith (GitHub: idleAustin)
+   Tagline: "Mostly idle. There probably was an easier way to do this."
+   ======================================================== */
 :root {
-  --background: var(--color-retro-black);
-  --foreground: var(--color-retro-green);
+  /* Typography */
+  --as-font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --as-font-body: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  --as-font-mono: 'Fira Code', monospace;
+
+  /* Surfaces & Void (Pure Obsidian) */
+  --as-bg-base: #0a0a0c;
+  --as-bg-surface: #121216;
+  --as-bg-elevated: #18181f;
+  --as-bg-overlay: #202029;
+  --as-border-subtle: #22222a;
+  --as-border-strong: #33333f;
+  --as-border-focus: #84cc16;
+
+  /* Signature Accent (Radioactive / Electric Lime) */
+  --as-accent-primary: #84cc16;
+  --as-accent-hover: #65a30d;
+  --as-accent-text: #1a2e05;
+  --as-accent-muted: rgba(132, 204, 22, 0.12);
+  --as-accent-glow: rgba(132, 204, 22, 0.25);
+
+  /* Semantic Status */
+  --as-status-success: #10b981;
+  --as-status-success-bg: rgba(16, 185, 129, 0.12);
+  --as-status-warning: #f59e0b;
+  --as-status-warning-bg: rgba(245, 158, 11, 0.12);
+  --as-status-error: #f43f5e;
+  --as-status-error-bg: rgba(244, 63, 94, 0.12);
+  --as-status-info: #38bdf8;
+  --as-status-info-bg: rgba(56, 189, 248, 0.12);
+
+  /* Text & Neutral Hierarchy */
+  --as-text-primary: #f4f4f5;
+  --as-text-secondary: #a1a1aa;
+  --as-text-muted: #71717a;
+
+  /* Geometry & Radius */
+  --as-radius-sm: 4px;
+  --as-radius-md: 6px;
+  --as-radius-lg: 10px;
+  --as-radius-pill: 9999px;
+
+  /* Motion */
+  --as-ease-snap: cubic-bezier(0.16, 1, 0.3, 1);
+  --as-duration-fast: 100ms;
+  --as-duration-normal: 150ms;
+
+  /* ========================================================
+     Legacy Compatibility Bridge — Mapping to --as-* Tokens
+     ======================================================== */
+  --background: var(--as-bg-base);
+  --foreground: var(--as-text-primary);
+  --color-retro-black: var(--as-bg-base);
+  --color-retro-green: var(--as-accent-primary);
+  --color-retro-dim: var(--as-accent-hover);
+  --color-retro-amber: var(--as-status-warning);
+  --color-retro-red: var(--as-status-error);
+  --color-retro-gray: var(--as-border-subtle);
+
+  --bg-base: var(--as-bg-base);
+  --bg-surface: var(--as-bg-surface);
+  --bg-elevated: var(--as-bg-elevated);
+  --bg-overlay: var(--as-bg-overlay);
+  --bg-surface-hover: var(--as-bg-elevated);
+  --bg-highlight: var(--as-bg-overlay);
+  --bg-input: var(--as-bg-base);
+  --bg-primary: var(--as-bg-surface);
+  --bg-secondary: var(--as-bg-elevated);
+  --card-glass: var(--as-bg-surface);
+  --card-glass-hover: var(--as-bg-elevated);
+
+  --text-primary: var(--as-text-primary);
+  --text-secondary: var(--as-text-secondary);
+  --text-muted: var(--as-text-muted);
+  --text-dim: var(--as-text-muted);
+
+  --accent: var(--as-accent-primary);
+  --accent-hover: var(--as-accent-hover);
+  --accent-text: var(--as-accent-text);
+  --accent-dim: var(--as-accent-muted);
+  --accent-muted: var(--as-accent-muted);
+  --accent-glow: var(--as-accent-glow);
+
+  --accent-green: var(--as-status-success);
+  --accent-blue: var(--as-status-info);
+  --accent-amber: var(--as-status-warning);
+  --accent-red: var(--as-status-error);
+
+  --teal: var(--as-status-success);
+  --teal-dim: var(--as-status-success-bg);
+  --emerald: var(--as-status-success);
+  --emerald-dim: var(--as-status-success-bg);
+  --blue: var(--as-status-info);
+  --blue-dim: var(--as-status-info-bg);
+  --amber: var(--as-status-warning);
+  --amber-dim: var(--as-status-warning-bg);
+  --rose: var(--as-status-error);
+  --rose-dim: var(--as-status-error-bg);
+  --purple: var(--as-status-info);
+  --purple-dim: var(--as-status-info-bg);
+
+  --border: var(--as-border-subtle);
+  --border-color: var(--as-border-subtle);
+  --border-hover: var(--as-border-strong);
+  --border-accent: var(--as-border-focus);
+  --border-glow: 0 0 0 1px var(--as-accent-primary), 0 0 12px var(--as-accent-glow);
+
+  --r: var(--as-radius-md);
+  --r-sm: var(--as-radius-sm);
+  --r-md: var(--as-radius-md);
+  --r-lg: var(--as-radius-lg);
+  --r-xl: var(--as-radius-lg);
+  --r-pill: var(--as-radius-pill);
+
+  --glow-sm: 0 0 12px var(--as-accent-glow);
+  --glow-md: 0 0 24px var(--as-accent-glow);
+  --glow-lg: 0 0 36px var(--as-accent-glow);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+
+  --ease: var(--as-ease-snap);
 }
 
 body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-mono);
-  -webkit-font-smoothing: none;
+  background-color: var(--as-bg-base);
+  color: var(--as-text-primary);
+  font-family: var(--as-font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar — Pure Obsidian */
 ::-webkit-scrollbar {
-  width: 10px;
+  width: 8px;
+  height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-retro-black);
+  background: var(--as-bg-base);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-retro-dim);
-  border: 1px solid var(--color-retro-green);
+  background: var(--as-border-strong);
+  border-radius: var(--as-radius-sm);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-retro-green);
+  background: var(--as-accent-primary);
 }
 
 /* Hide number input arrows */
@@ -46,4 +176,20 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { 
   -webkit-appearance: none; 
   margin: 0; 
+}
+
+/* ========== KEYBOARD ACCESSIBILITY FOCUS RING ========== */
+:focus-visible {
+  outline: 2px solid var(--as-accent-primary);
+  outline-offset: 2px;
+}
+
+/* ========== REDUCED MOTION ========== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

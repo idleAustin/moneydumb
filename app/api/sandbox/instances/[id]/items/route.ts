@@ -58,6 +58,15 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
     }
 
     for (const item of items) {
+      if (item.account_id) {
+        const accountCheck = await sql`
+          SELECT id FROM accounts WHERE id = ${item.account_id} AND user_id = ${userId}
+        `;
+        if (accountCheck.rows.length === 0) {
+          return Response.json({ error: 'Account not found' }, { status: 404 });
+        }
+      }
+
       const isPaidInt = item.is_paid ? 1 : 0;
       const amtOverride = item.amount_override !== undefined && item.amount_override !== null 
         ? parseFloat(item.amount_override) 
@@ -79,7 +88,7 @@ export async function PUT(request: Request, props: { params: Promise<{ id: strin
         `;
       } else {
         // Insert
-        const id = item.id || crypto.randomUUID();
+        const id = crypto.randomUUID();
         await sql`
           INSERT INTO sandbox_items (id, instance_id, item_type, item_ref_id, is_paid, amount_override, account_id, name) 
           VALUES (${id}, ${instanceId}, ${item.item_type}, ${item.item_ref_id}, ${isPaidInt}, ${amtOverride}, ${item.account_id || null}, ${item.name || null})
