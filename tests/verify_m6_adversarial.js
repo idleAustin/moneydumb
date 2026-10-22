@@ -676,6 +676,46 @@ check('Discretionary and Runway Invariants: Wants analysis math invariants', () 
   return 'Wants discretionary and saving timeline invariants verified';
 });
 
+check('Production Session Auth Invariant: createSessionToken succeeds in production when SESSION_SECRET is unset but POSTGRES_URL is configured (Vercel parity)', () => {
+  const { stripTypeScriptTypes } = require('module');
+  const vm = require('vm');
+  const authPath = path.join(APP_DIR, 'lib', 'auth.ts');
+  const rawTs = fs.readFileSync(authPath, 'utf8');
+  const cjsCode = stripTypeScriptTypes(rawTs)
+    .replace(/import\s+\{\s*cookies\s*\}\s+from\s+['"]next\/headers['"];?/, 'const { cookies } = __nextHeaders;')
+    .replace(/import\s+crypto\s+from\s+['"]crypto['"];?/, 'const crypto = require("crypto");')
+    .replace(/export\s+async\s+function\s+/g, 'exports.getAuthUserId = async function ')
+    .replace(/export\s+function\s+createSessionToken/g, 'exports.createSessionToken = function createSessionToken');
+
+  let cookieValue = undefined;
+  const sandboxExports = {};
+  const sandboxProcess = {
+    env: {
+      NODE_ENV: 'production',
+      POSTGRES_URL: 'postgres://neondb_owner:test_secret_pw@ep-example.us-east-2.aws.neon.tech/neondb?sslmode=require',
+    },
+  };
+  const context = vm.createContext({
+    exports: sandboxExports,
+    require,
+    process: sandboxProcess,
+    Buffer,
+    __nextHeaders: {
+      cookies: async () => ({
+        get: (name) => (name === 'session' && cookieValue ? { value: cookieValue } : undefined),
+      }),
+    },
+  });
+  vm.runInContext(cjsCode, context);
+
+  const userId = '550e8400-e29b-41d4-a716-446655440000';
+  const token = sandboxExports.createSessionToken(userId);
+  assert(typeof token === 'string' && token.startsWith(`${userId}.`), 'Expected signed session token');
+  const sig = token.slice(userId.length + 1);
+  assert(/^[0-9a-f]{64}$/i.test(sig), 'Expected 64-char hex HMAC-SHA256 signature');
+  return 'Production session token created and verified with POSTGRES_URL fallback';
+});
+
 // =============================================================================
 // SUMMARY & VERDICT
 // =============================================================================

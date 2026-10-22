@@ -7,6 +7,10 @@ function getSessionSecret(): string | Buffer {
   if (process.env.SESSION_SECRET) {
     return process.env.SESSION_SECRET;
   }
+  const dbSecret = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (dbSecret) {
+    return crypto.createHash('sha256').update(dbSecret).digest();
+  }
   if (process.env.NODE_ENV === 'production') {
     throw new Error('SESSION_SECRET environment variable is required in production');
   }
