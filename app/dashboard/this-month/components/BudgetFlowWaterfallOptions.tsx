@@ -133,163 +133,188 @@ export default function BudgetFlowWaterfallOptions({
     <div className="card">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
-            <BarChart3 size={17} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />
+          <h2 style={{ display: 'flex', alignItems: 'center', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+            <BarChart3 size={17} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
             Budget Flow Waterfall
-          </h3>
-          <span style={{ fontSize: '0.72rem', color: 'var(--as-text-muted)' }}>
-            {MONTH_NAMES[viewMonth - 1]} cash bridge into {nextMonthName} {nextYear} • Click any category row to inspect bills
+          </h2>
+          <span style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)' }}>
+            {MONTH_NAMES[viewMonth - 1]} cash bridge into {nextMonthName} {nextYear} • Expand any category row to inspect bills
           </span>
         </div>
       </div>
 
-      {/* Top Summary Telemetry Strip */}
+      {/* Top Summary Telemetry Strip (recessed --as-bg-base inside card) */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-          gap: 8,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
+          gap: 10,
           marginBottom: 14,
           padding: '10px 12px',
-          background: 'var(--as-bg-elevated)',
+          background: 'var(--as-bg-base)',
           borderRadius: 'var(--as-radius-md)',
           border: '1px solid var(--as-border-subtle)',
         }}
       >
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Starting Cash + Inbound</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-text-primary)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Starting Cash + Inbound</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-text-primary)', marginTop: 2 }}>
             {fmtFull(startingBalance)} <span style={{ color: 'var(--as-accent-primary)', fontSize: '0.76rem' }}>+{fmtFull(totalIncome)}</span>
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Peak Monthly Cash Pool</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-status-info)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Peak Monthly Cash Pool</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-status-info)', marginTop: 2 }}>
             {fmtFull(startingBalance + totalIncome)}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Paid vs. Remaining Outflow</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.84rem', fontWeight: 700, marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Paid vs. Remaining Outflow</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.84rem', fontWeight: 700, marginTop: 2 }}>
             <span style={{ color: 'var(--as-status-success)' }}>{fmt(totalPaidOutflow)} paid</span>
-            <span style={{ color: 'var(--as-text-muted)' }}> / </span>
+            <span style={{ color: 'var(--as-text-tertiary)' }}> / </span>
             <span style={{ color: 'var(--as-status-warning)' }}>{fmt(totalUnpaidOutflow)} left</span>
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Net Monthly Cash Delta</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.9rem', fontWeight: 700, color: netMonthlyChange >= 0 ? 'var(--as-status-success)' : 'var(--as-status-error)', marginTop: 2 }}>
-            {netMonthlyChange >= 0 ? '+' : ''}
-            {fmtFull(netMonthlyChange)}
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Net Monthly Cash Delta</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: netMonthlyChange >= 0 ? 'var(--as-status-success)' : 'var(--as-status-error)', marginTop: 2 }}>
+            {netMonthlyChange >= 0 ? `+${fmtFull(netMonthlyChange)}` : fmtFull(netMonthlyChange)}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Projected {nextMonthName} 1st Start</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.95rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Projected {nextMonthName} 1st Start</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.95rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)', marginTop: 2 }}>
             {fmtFull(endBalance)}
           </div>
         </div>
       </div>
 
       {/* LOCKED-IN OPTION B: 8-Column Category Allocation & Burn Matrix Table */}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table className="data-table" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
-          <thead>
-            <tr>
-              <th>WATERFALL STEP / CATEGORY</th>
-              <th style={{ textAlign: 'center' }}>ITEMS</th>
-              <th style={{ textAlign: 'right' }}>PAID SO FAR</th>
-              <th style={{ textAlign: 'right' }}>STILL UNPAID</th>
-              <th style={{ textAlign: 'right' }}>STEP TOTAL</th>
-              <th style={{ textAlign: 'right' }}>% OF INCOME</th>
-              <th style={{ width: 150 }}>PAID PROGRESS</th>
-              <th style={{ textAlign: 'right' }}>RUNNING BALANCE</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td style={{ fontWeight: 700 }}>1. Starting Bank Balances</td>
-              <td style={{ textAlign: 'center', color: 'var(--as-text-muted)' }}>{visibleAccounts.length} accts</td>
-              <td className="amount" style={{ color: 'var(--as-text-muted)' }}>—</td>
-              <td className="amount" style={{ color: 'var(--as-text-muted)' }}>—</td>
-              <td className="amount" style={{ fontWeight: 700 }}>{fmtFull(startingBalance)}</td>
-              <td className="amount" style={{ color: 'var(--as-text-muted)' }}>Base</td>
-              <td />
-              <td className="amount" style={{ fontWeight: 700 }}>{fmtFull(startingBalance)}</td>
-            </tr>
-            <tr>
-              <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>2. + Inbound Paychecks & Deposits</td>
-              <td style={{ textAlign: 'center', color: 'var(--as-text-muted)' }}>Inflow</td>
-              <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>+{fmtFull(incomeReceived ?? totalIncome)}</td>
-              <td className="amount" style={{ color: Math.max(0, totalIncome - (incomeReceived ?? totalIncome)) > 0 ? 'var(--as-status-warning)' : 'var(--as-text-muted)' }}>{fmtFull(Math.max(0, totalIncome - (incomeReceived ?? totalIncome)))}</td>
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>+{fmtFull(totalIncome)}</td>
-              <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>100.0%</td>
-              <td />
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>{fmtFull(startingBalance + totalIncome)}</td>
-            </tr>
-            {categoryBuckets.map((b, idx) => {
-              const pctIncome = totalIncome > 0 ? (b.total / totalIncome) * 100 : 0;
-              const paidPct = b.total > 0 ? (b.paid / b.total) * 100 : 0;
-              const isExpanded = expandedStepId === b.id;
-              return (
-                <Fragment key={b.id}>
-                  <tr onClick={() => toggleExpand(b.id)} style={{ cursor: 'pointer' }}>
-                    <td style={{ fontWeight: 600 }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        {isExpanded ? <ChevronDown size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" /> : <ChevronRight size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" />}
-                        {idx + 3}. − {b.label}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)', fontSize: '0.72rem' }}>{b.paidCount}/{b.count}</td>
-                    <td className="amount" style={{ color: 'var(--as-status-success)' }}>{fmtFull(b.paid)}</td>
-                    <td className="amount" style={{ color: b.unpaid > 0 ? 'var(--as-status-warning)' : 'var(--as-text-muted)' }}>{fmtFull(b.unpaid)}</td>
-                    <td className="amount" style={{ fontWeight: 700, color: b.kind === 'debt' ? 'var(--as-status-warning)' : 'var(--as-status-error)' }}>−{fmtFull(b.total)}</td>
-                    <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>{pctIncome.toFixed(1)}%</td>
-                    <td>
-                      <div style={{ height: 6, background: 'var(--as-bg-elevated)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ width: `${paidPct}%`, height: '100%', background: 'var(--as-accent-primary)' }} />
-                      </div>
-                    </td>
-                    <td className="amount" style={{ fontWeight: 700 }}>{fmtFull(b.endRunning)}</td>
-                  </tr>
-                  {isExpanded && b.items.length > 0 && (
+      <div className="scroll-table-wrapper">
+        <div className="scroll-table-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="data-table" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            <thead>
+              <tr>
+                <th>WATERFALL STEP / CATEGORY</th>
+                <th style={{ textAlign: 'center' }}>ITEMS</th>
+                <th style={{ textAlign: 'right' }}>PAID SO FAR</th>
+                <th style={{ textAlign: 'right' }}>STILL UNPAID</th>
+                <th style={{ textAlign: 'right' }}>STEP TOTAL</th>
+                <th style={{ textAlign: 'right' }}>% OF INCOME</th>
+                <th style={{ width: 150 }}>PAID PROGRESS</th>
+                <th style={{ textAlign: 'right' }}>RUNNING BALANCE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style={{ fontWeight: 700 }}>1. Starting Bank Balances</td>
+                <td style={{ textAlign: 'center', color: 'var(--as-text-tertiary)', fontFamily: 'var(--as-font-mono)' }}>{visibleAccounts.length} accts</td>
+                <td className="amount" style={{ color: 'var(--as-text-tertiary)' }}>—</td>
+                <td className="amount" style={{ color: 'var(--as-text-tertiary)' }}>—</td>
+                <td className="amount" style={{ fontWeight: 700 }}>{fmtFull(startingBalance)}</td>
+                <td className="amount" style={{ color: 'var(--as-text-tertiary)' }}>Base</td>
+                <td />
+                <td className="amount" style={{ fontWeight: 700, color: startingBalance >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)' }}>{fmtFull(startingBalance)}</td>
+              </tr>
+              <tr>
+                <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>2. + Inbound Paychecks &amp; Deposits</td>
+                <td style={{ textAlign: 'center', color: 'var(--as-text-tertiary)' }}>Inflow</td>
+                <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>+{fmtFull(incomeReceived ?? totalIncome)}</td>
+                <td className="amount" style={{ color: Math.max(0, totalIncome - (incomeReceived ?? totalIncome)) > 0 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmtFull(Math.max(0, totalIncome - (incomeReceived ?? totalIncome)))}</td>
+                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>+{fmtFull(totalIncome)}</td>
+                <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>100.0%</td>
+                <td />
+                <td className="amount" style={{ fontWeight: 700, color: startingBalance + totalIncome >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>{fmtFull(startingBalance + totalIncome)}</td>
+              </tr>
+              {categoryBuckets.map((b, idx) => {
+                const pctIncome = totalIncome > 0 ? (b.total / totalIncome) * 100 : 0;
+                const paidPct = b.total > 0 ? (b.paid / b.total) * 100 : 0;
+                const isExpanded = expandedStepId === b.id;
+                const detailRowId = `tm-waterfall-detail-${b.id}`;
+                return (
+                  <Fragment key={b.id}>
                     <tr>
-                      <td colSpan={8} style={{ background: 'var(--as-bg-base)', padding: '8px 16px' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 6 }}>
-                          {b.items.map((item) => (
-                            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '4px 8px', background: 'var(--as-bg-surface)', borderRadius: 4, border: '1px solid var(--as-border-subtle)' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, textDecoration: item.isPaid ? 'line-through' : 'none', color: item.isPaid ? 'var(--as-text-muted)' : 'var(--as-text-primary)' }}>
-                                {item.isPaid ? (
-                                  <CheckCircle2 size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-success)' }} />
-                                ) : (
-                                  <Circle size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-muted)' }} />
-                                )}
-                                {item.name}
-                              </span>
-                              <span style={{ fontFamily: 'var(--as-font-mono)', fontWeight: 700, color: item.isPaid ? 'var(--as-text-muted)' : 'var(--as-text-primary)' }}>{fmtFull(item.amount)}</span>
-                            </div>
-                          ))}
+                      <td style={{ fontWeight: 600 }}>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(b.id)}
+                          aria-expanded={isExpanded}
+                          aria-controls={detailRowId}
+                          className="tm-waterfall-expand-btn"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                          ) : (
+                            <ChevronRight size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                          )}
+                          <span>{idx + 3}. − {b.label}</span>
+                        </button>
+                      </td>
+                      <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem', color: 'var(--as-text-secondary)' }}>{b.paidCount}/{b.count}</td>
+                      <td className="amount" style={{ color: 'var(--as-status-success)' }}>{fmtFull(b.paid)}</td>
+                      <td className="amount" style={{ color: b.unpaid > 0 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmtFull(b.unpaid)}</td>
+                      <td className="amount" style={{ fontWeight: 700, color: b.kind === 'debt' ? 'var(--as-status-warning)' : 'var(--as-status-error)' }}>−{fmtFull(b.total)}</td>
+                      <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>{pctIncome.toFixed(1)}%</td>
+                      <td>
+                        <div
+                          role="progressbar"
+                          aria-valuenow={Math.round(paidPct)}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${b.label} paid progress`}
+                          style={{ height: 6, background: 'var(--as-bg-base)', borderRadius: 3, overflow: 'hidden' }}
+                        >
+                          <div style={{ width: `${paidPct}%`, height: '100%', background: 'var(--as-accent-primary)' }} />
                         </div>
                       </td>
+                      <td className="amount" style={{ fontWeight: 700, color: b.endRunning >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)' }}>{fmtFull(b.endRunning)}</td>
                     </tr>
-                  )}
-                </Fragment>
-              );
-            })}
-            <tr style={{ background: 'var(--as-bg-elevated)' }}>
-              <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>= Projected Start of {nextMonthName}</td>
-              <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)' }}>
-                {unifiedObligations.filter((o) => o.isPaid).length}/{unifiedObligations.length}
-              </td>
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-success)' }}>{fmtFull(totalPaidOutflow)}</td>
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmtFull(totalUnpaidOutflow)}</td>
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-error)' }}>−{fmtFull(totalExpenses + totalDebtPayments)}</td>
-              <td className="amount" style={{ fontWeight: 700 }}>{totalIncome > 0 ? (((totalExpenses + totalDebtPayments) / totalIncome) * 100).toFixed(1) : '0.0'}%</td>
-              <td />
-              <td className="amount" style={{ fontSize: '0.96rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>{fmtFull(endBalance)}</td>
-            </tr>
-          </tbody>
-        </table>
+                    {isExpanded && (
+                      <tr id={detailRowId}>
+                        <td colSpan={8} style={{ background: 'var(--as-bg-base)', padding: '10px 16px', whiteSpace: 'normal' }}>
+                          {b.items.length === 0 ? (
+                            <div style={{ fontSize: '0.74rem', color: 'var(--as-text-secondary)' }}>
+                              No obligations in {b.label} for this month.
+                            </div>
+                          ) : (
+                            <div className="tm-waterfall-detail-grid">
+                              {b.items.map((item) => (
+                                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: '0.74rem', padding: '5px 8px', background: 'var(--as-bg-surface)', borderRadius: 4, border: '1px solid var(--as-border-subtle)' }}>
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, textDecoration: item.isPaid ? 'line-through' : 'none', color: item.isPaid ? 'var(--as-text-tertiary)' : 'var(--as-text-primary)', minWidth: 0 }}>
+                                    {item.isPaid ? (
+                                      <CheckCircle2 size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-success)', flexShrink: 0 }} />
+                                    ) : (
+                                      <Circle size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-tertiary)', flexShrink: 0 }} />
+                                    )}
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                  </span>
+                                  <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: item.isPaid ? 'var(--as-text-tertiary)' : 'var(--as-text-primary)', flexShrink: 0 }}>{fmtFull(item.amount)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              <tr style={{ background: 'var(--as-bg-elevated)' }}>
+                <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>= Projected Start of {nextMonthName}</td>
+                <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--as-text-secondary)' }}>
+                  {unifiedObligations.filter((o) => o.isPaid).length}/{unifiedObligations.length}
+                </td>
+                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-success)' }}>{fmtFull(totalPaidOutflow)}</td>
+                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmtFull(totalUnpaidOutflow)}</td>
+                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-error)' }}>−{fmtFull(totalExpenses + totalDebtPayments)}</td>
+                <td className="amount" style={{ fontWeight: 700 }}>{totalIncome > 0 ? (((totalExpenses + totalDebtPayments) / totalIncome) * 100).toFixed(1) : '0.0'}%</td>
+                <td />
+                <td className="amount" style={{ fontSize: '0.96rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>{fmtFull(endBalance)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

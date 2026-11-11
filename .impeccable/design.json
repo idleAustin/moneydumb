@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-10T22:09:00-06:00",
+  "title": "Design System: MoneyDumb",
+  "extensions": {
+    "colorMeta": {
+      "electric-lime": {
+        "role": "primary",
+        "displayName": "Electric Lime",
+        "canonical": "#84cc16",
+        "tonalRamp": ["#1a2e05", "#2d4f0b", "#3f6212", "#4d7c0f", "#65a30d", "#84cc16", "#bef264", "#ecfccb"]
+      },
+      "obsidian-void": {
+        "role": "neutral",
+        "displayName": "Obsidian Void",
+        "canonical": "#0a0a0c",
+        "tonalRamp": ["#0a0a0c", "#121216", "#18181f", "#202029", "#33333f", "#71717a", "#a1a1aa", "#f4f4f5"]
+      },
+      "status-success": {
+        "role": "secondary",
+        "displayName": "Emerald Clear",
+        "canonical": "#10b981",
+        "tonalRamp": ["#064e3b", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#d1fae5"]
+      },
+      "status-warning": {
+        "role": "secondary",
+        "displayName": "Amber Due",
+        "canonical": "#f59e0b",
+        "tonalRamp": ["#451a03", "#78350f", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fef3c7"]
+      },
+      "status-error": {
+        "role": "secondary",
+        "displayName": "Rose Deficit",
+        "canonical": "#f43f5e",
+        "tonalRamp": ["#4c0519", "#881337", "#9f1239", "#be123c", "#e11d48", "#f43f5e", "#fb7185", "#ffe4e6"]
+      },
+      "status-info": {
+        "role": "secondary",
+        "displayName": "Sky Telemetry",
+        "canonical": "#38bdf8",
+        "tonalRamp": ["#082f49", "#0c4a6e", "#075985", "#0369a1", "#0284c7", "#38bdf8", "#7dd3fc", "#e0f2fe"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Authentication wordmark only." },
+      "headline": { "displayName": "Headline", "purpose": "Page titles and active month workspace headers." },
+      "title": { "displayName": "Title", "purpose": "Card headers, modal titles, and drawer headings." },
+      "body": { "displayName": "Body", "purpose": "Operational copy, table labels, and form controls." },
+      "label": { "displayName": "Label", "purpose": "Form field labels, table column headers, and filter chips." },
+      "mono": { "displayName": "Mono Telemetry", "purpose": "Tabular currency figures, APRs, dates, and keyboard badges." }
+    },
+    "shadows": [
+      { "name": "rest-sm", "value": "0 1px 2px rgba(0, 0, 0, 0.4)", "purpose": "Mobile fixed header separation." },
+      { "name": "popover", "value": "0 10px 25px rgba(0, 0, 0, 0.7)", "purpose": "Floating tooltips, table search popups, and toast notifications." },
+      { "name": "modal", "value": "0 20px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px #22222a", "purpose": "Command palette, modal dialogs, and slide-over drawers." }
+    ],
+    "motion": [
+      { "name": "ease-snap", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Snappy deceleration for immediate UI feedback and overlays." },
+      { "name": "duration-fast", "value": "100ms", "purpose": "Hover, active, and keycap state feedback." },
+      { "name": "duration-normal", "value": "150ms", "purpose": "Drawer, modal, border, and filter transitions." }
+    ],
+    "breakpoints": [
+      { "name": "xs", "value": "400px" },
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "matrix", "value": "860px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "High-contrast Electric Lime primary action button for commits and creation.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Execute Cycle</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--as-accent-primary, #84cc16); color: var(--as-accent-text, #1a2e05); border: 1px solid var(--as-accent-primary, #84cc16); border-radius: var(--as-radius-sm, 4px); font-family: var(--as-font-body, sans-serif); font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 100ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-primary:hover { background: var(--as-accent-hover, #65a30d); border-color: var(--as-accent-hover, #65a30d); } .ds-btn-primary:active { transform: scale(0.98); } .ds-btn-primary:focus-visible { outline: 2px solid var(--as-accent-primary, #84cc16); outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Elevated obsidian control for non-destructive secondary actions.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Batch Pay Safe</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 8px 18px; background: var(--as-bg-elevated, #18181f); color: var(--as-text-primary, #f4f4f5); border: 1px solid var(--as-border-strong, #33333f); border-radius: var(--as-radius-sm, 4px); font-family: var(--as-font-body, sans-serif); font-size: 0.8rem; font-weight: 500; cursor: pointer; transition: background 150ms cubic-bezier(0.16, 1, 0.3, 1), border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { background: var(--as-bg-overlay, #202029); border-color: var(--as-text-secondary, #a1a1aa); } .ds-btn-secondary:active { transform: scale(0.98); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--as-accent-primary, #84cc16); outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Recessed obsidian form input with 44px height and crisp lime focus ring.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-label\" for=\"ds-acct\">Account Name</label><input id=\"ds-acct\" class=\"ds-input\" type=\"text\" placeholder=\"Primary Checking\" /></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; } .ds-label { font-family: var(--as-font-body, sans-serif); font-size: 0.75rem; font-weight: 600; color: var(--as-text-secondary, #a1a1aa); letter-spacing: 0.04em; } .ds-input { height: 44px; padding: 10px 14px; background: var(--as-bg-base, #0a0a0c); border: 1px solid var(--as-border-subtle, #22222a); border-radius: var(--as-radius-sm, 4px); color: var(--as-text-primary, #f4f4f5); caret-color: var(--as-accent-primary, #84cc16); font-family: var(--as-font-body, sans-serif); font-size: 0.875rem; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-input::placeholder { color: var(--as-text-muted, #71717a); } .ds-input:focus-visible { outline: none; border-color: var(--as-border-focus, #84cc16); box-shadow: 0 0 0 1px var(--as-border-focus, #84cc16); }"
+    },
+    {
+      "name": "Category Filter Chip",
+      "kind": "chip",
+      "description": "Pill-shaped operational filter toggle with tabular count telemetry.",
+      "html": "<button class=\"ds-chip\" type=\"button\" aria-pressed=\"true\">Housing 4/4 ($2,140)</button>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; background: rgba(132, 204, 22, 0.12); border: 1px solid var(--as-accent-primary, #84cc16); color: var(--as-accent-primary, #84cc16); font-family: var(--as-font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: background 100ms ease, border-color 100ms ease; } .ds-chip:hover { background: rgba(132, 204, 22, 0.18); } .ds-chip:focus-visible { outline: 2px solid var(--as-accent-primary, #84cc16); outline-offset: 2px; }"
+    },
+    {
+      "name": "Safe Cash Telemetry Card",
+      "kind": "card",
+      "refersTo": "card-surface",
+      "description": "Flat 1px-bordered obsidian surface displaying tabular financial telemetry.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-label\">Current Safe Cash</div><div class=\"ds-card-value\">$3,482.50</div><div class=\"ds-card-sub\">Month-End Buffer: $1,920.00</div></div>",
+      "css": ".ds-card { background: var(--as-bg-surface, #121216); border: 1px solid var(--as-border-subtle, #22222a); border-radius: var(--as-radius-md, 6px); padding: 20px; transition: border-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-card:hover { border-color: var(--as-border-strong, #33333f); } .ds-card-label { font-family: var(--as-font-body, sans-serif); font-size: 0.75rem; font-weight: 600; color: var(--as-text-secondary, #a1a1aa); letter-spacing: 0.03em; } .ds-card-value { font-family: var(--as-font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 1.65rem; font-weight: 700; color: var(--as-accent-primary, #84cc16); margin-top: 6px; letter-spacing: -0.03em; } .ds-card-sub { font-family: var(--as-font-mono, monospace); font-variant-numeric: tabular-nums; font-size: 0.75rem; color: var(--as-text-muted, #71717a); margin-top: 4px; }"
+    },
+    {
+      "name": "Telemetry Status & Command Bar",
+      "kind": "custom",
+      "description": "Persistent cockpit header pairing engine status pulse with Cmd+K palette trigger.",
+      "html": "<div class=\"ds-topbar\"><span class=\"ds-status\"><span class=\"ds-dot\"></span>idleAustin (idle, but operational)</span><button class=\"ds-cmd-btn\" type=\"button\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><span>Command</span><kbd class=\"ds-kbd\">⌘K</kbd></button></div>",
+      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--as-border-subtle, #22222a); } .ds-status { display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; background: var(--as-bg-surface, #121216); border: 1px solid var(--as-border-subtle, #22222a); border-radius: 9999px; font-family: var(--as-font-mono, monospace); font-size: 0.7rem; color: var(--as-text-secondary, #a1a1aa); } .ds-dot { width: 7px; height: 7px; border-radius: 9999px; background: var(--as-accent-primary, #84cc16); } .ds-cmd-btn { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--as-bg-surface, #121216); border: 1px solid var(--as-border-subtle, #22222a); border-radius: 6px; color: var(--as-text-secondary, #a1a1aa); font-family: var(--as-font-body, sans-serif); font-size: 0.75rem; cursor: pointer; transition: border-color 150ms ease, color 150ms ease; } .ds-cmd-btn:hover { background: var(--as-bg-elevated, #18181f); border-color: var(--as-border-strong, #33333f); color: var(--as-text-primary, #f4f4f5); } .ds-cmd-btn:focus-visible { outline: 2px solid var(--as-accent-primary, #84cc16); outline-offset: 2px; } .ds-kbd { font-family: var(--as-font-mono, monospace); font-size: 0.625rem; padding: 2px 6px; background: var(--as-bg-base, #0a0a0c); border: 1px solid var(--as-border-subtle, #22222a); border-radius: 4px; color: var(--as-text-muted, #71717a); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Obsidian Cockpit",
+    "overview": "MoneyDumb implements the idleAustin design language for high-stakes personal financial operations: a four-tier solid obsidian surface hierarchy (#0a0a0c through #202029), crisp 1px structural hairlines, tabular monospace telemetry, and a single surgical Electric Lime (#84cc16) signal color. Rather than disguising financial stress behind pastel fintech illustrations or decorative glassmorphism, the interface behaves like a calm, precision instrument panel built for payday bill execution and debt amortization.\n\nDensity is deliberate and task-governed. Working screens (This Month, Debts, Expenses, Income, Accounts) keep related numbers tightly grouped with generous structural intervals between regions so the eye can scan balances, due dates, and post-obligation safe cash in a single pass. Every interactive surface rejects ornamental blur, glowing ambient orbs, emojis, and exclamation points in favor of crisp vector iconography and deadpan, unambiguous microcopy.",
+    "keyCharacteristics": [
+      "Four-step monotonic Pure Obsidian luminance ladder with zero backdrop-filter: blur glassmorphism and zero decorative orbs.",
+      "Restrained Electric Lime accent reserved for primary actions, active route/tab selection, focus rings, and positive safe-cash emphasis.",
+      "Tri-voice typographic system pairing Outfit structural headings, Geist UI copy, and Fira Code tabular financial numerals.",
+      "Geometric 2.0px-stroke Lucide vector icons with accessible names and hover-safe tooltips; zero emojis or icon fonts.",
+      "Snappy 100ms–150ms cubic-bezier(0.16, 1, 0.3, 1) state transitions with reduced-motion fidelity."
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "Electric Lime owns primary action, active selection, and keyboard focus; never scatter it as decorative borders or background washes across inactive cards.",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic Pairing Rule",
+        "body": "Status colors (success, warning, error, info) never communicate state by hue alone—always pair them with explicit text (Cleared, Overdue, −$420.00) or a distinct geometric icon.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Every currency amount, percentage, due day, and countdown renders in Fira Code with font-variant-numeric: tabular-nums and right-alignment inside table columns so decimal points align vertically.",
+        "section": "typography"
+      },
+      {
+        "name": "The Readable Floor Rule",
+        "body": "Operational metadata and badges stay at or above 11px (0.6875rem), reserving 10px (0.625rem) strictly for .kbd keycap badges; mobile text inputs always render at 16px (1rem) to prevent forced iOS viewport zoom.",
+        "section": "typography"
+      },
+      {
+        "name": "The Pure Obsidian Rule",
+        "body": "Surfaces never use backdrop-filter: blur, translucent frosted cards, or decorative glowing background orbs; hierarchy comes from solid surface steps and 1px borders.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Earned Shadow Rule",
+        "body": "Inline cards and stat tiles sit flat on the canvas with 1px borders; directional shadows appear only on popovers, drawers, toasts, and modals that genuinely overlap content beneath them.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use --as-* CSS custom properties for every surface, border, text, accent, and status color across stylesheets and TSX components.",
+      "Do format all dollar amounts, APRs, percentages, and due dates in Fira Code (--as-font-mono) with font-variant-numeric: tabular-nums and right-align numeric table columns.",
+      "Do provide explicit loading skeletons, actionable error banners with retry controls, and helpful empty states on every data-fetching route so slow or failed requests never flash false empty states.",
+      "Do attach role=\"dialog\", aria-modal=\"true\", aria-labelledby, Escape key dismissal, and <label htmlFor> bindings to every modal and slide-over drawer.",
+      "Do theme native browser surfaces (color-scheme: dark, ::selection, caret-color, custom scrollbars, :focus-visible) to match the Pure Obsidian + Electric Lime palette."
+    ],
+    "donts": [
+      "Don't render emojis, Unicode dingbats (✓, ✕, ⚠️), Material Symbols, or exclamation points (!) anywhere in UI components, tooltips, alerts, or empty states.",
+      "Don't apply backdrop-filter: blur, .ambient-orb glows, gradient text, eyebrows/kickers above headings, nested cards-in-cards, or > 1px colored side borders.",
+      "Don't load or reference legacy typefaces (Inter, Space Grotesk, JetBrains Mono, IBM Plex Mono).",
+      "Don't suppress focus outlines (outline: none) without an immediate high-contrast :focus-visible replacement, or mutate hover styles via inline onMouseOver/onMouseOut handlers.",
+      "Don't set mobile input font sizes below 16px (1rem) or interactive mobile tap targets below 44x44px at <= 640px."
+    ]
+  }
+}

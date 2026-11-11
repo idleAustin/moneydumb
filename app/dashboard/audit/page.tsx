@@ -1,8 +1,33 @@
-import { getBanks, updateAllBalances, type BankAccount } from '../../lib/actions';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import {
+  ClipboardCheck,
+  ArrowLeft,
+  Landmark,
+} from 'lucide-react';
+import { getAuthUserId } from '@/app/lib/auth';
+import {
+  getBanks,
+  updateAllBalances,
+  type BankAccount,
+} from '@/app/lib/actions';
+
+const fmtCurrency = (n: number) => {
+  const val = Object.is(n, -0) || Math.abs(n) < 0.00001 ? 0 : n;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
+};
 
 export default async function DailyAudit() {
+  const userId = await getAuthUserId();
+  if (!userId) {
+    redirect('/');
+  }
+
   const banks = await getBanks();
 
   async function saveAllAction(formData: FormData) {
@@ -11,60 +36,160 @@ export default async function DailyAudit() {
   }
 
   return (
-    <div className="min-h-screen bg-retro-black text-retro-green font-mono p-4 md:p-8">
-      {/* Header */}
-      <div className="flex justify-between items-center border-b-2 border-retro-dim pb-4 mb-8">
+    <div className="fade-in">
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-bold tracking-tighter text-retro-amber">DAILY_AUDIT</h1>
-          <p className="text-xs text-retro-dim mt-1">&gt;&gt; RECONCILE / ACTUALS</p>
+          <h2 style={{ display: 'flex', alignItems: 'center' }}>
+            <ClipboardCheck
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+            />
+            <span>Daily Balance Audit</span>
+          </h2>
+          <p>Enter actual balances from your banking apps to reconcile safe-to-spend cash.</p>
         </div>
+
         <Link
           href="/dashboard/this-month"
-          className="text-xs border border-retro-dim px-4 py-2 hover:bg-retro-dim hover:text-retro-black transition-colors uppercase inline-flex items-center gap-1"
-          aria-label="Cancel daily audit and return to this month workspace"
+          className="btn btn-secondary"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <ArrowLeft size={12} aria-hidden="true" focusable="false" /> Cancel
+          <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+          <span>Back to This Month</span>
         </Link>
       </div>
 
-      <div className="max-w-2xl mx-auto border border-retro-dim bg-retro-gray/5 p-8">
-        <p className="text-sm text-retro-dim mb-6 uppercase tracking-widest border-b border-retro-dim pb-2">
-          Input actual values from banking apps:
-        </p>
+      <div className="card section" style={{ maxWidth: 720 }}>
+        <div className="card-header">
+          <h3>Reconcile Account Actuals</h3>
+          <span
+            className="badge badge-blue"
+            style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {banks.length} {banks.length === 1 ? 'account' : 'accounts'}
+          </span>
+        </div>
 
-        <form action={saveAllAction} className="space-y-6">
-          <div className="space-y-4">
-            {banks.map((bank: BankAccount) => (
-              <div key={bank.id} className="flex items-center justify-between group hover:bg-retro-gray/10 p-2 transition-colors">
-                <label className="text-sm font-bold w-1/3 uppercase truncate" htmlFor={bank.id}>
-                  {bank.name}
-                </label>
-                
-                <div className="flex items-center w-1/3 justify-end border-b border-retro-dim group-focus-within:border-retro-amber">
-                  <span className="text-retro-dim mr-2">$</span>
-                  <input 
-                    id={bank.id}
-                    name={`balance_${bank.id}`} // Unique name for the server action
-                    type="number" 
-                    step="0.01" 
-                    defaultValue={bank.current_balance}
-                    className="bg-transparent text-right font-mono text-lg text-retro-green focus:outline-none w-full"
-                  />
-                </div>
-              </div>
-            ))}
+        {banks.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Landmark
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)' }}
+              />
+            </div>
+            <h3>No accounts to reconcile</h3>
+            <p>Add at least one checking or savings account before running a balance audit.</p>
+            <Link href="/dashboard/accounts" className="btn btn-primary">
+              + Add Account
+            </Link>
           </div>
+        ) : (
+          <form action={saveAllAction}>
+            <div>
+              {banks.map((bank: BankAccount) => {
+                const current = Number(bank.current_balance);
+                return (
+                  <div
+                    key={bank.id}
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '14px 0',
+                      borderBottom: '1px solid var(--as-border-subtle)',
+                    }}
+                  >
+                    <div style={{ minWidth: 180, flex: '1 1 200px' }}>
+                      <label
+                        htmlFor={`balance_${bank.id}`}
+                        style={{
+                          display: 'block',
+                          fontSize: '0.9rem',
+                          fontWeight: 600,
+                          color: 'var(--as-text-primary)',
+                          marginBottom: 4,
+                          letterSpacing: '0',
+                          textTransform: 'none',
+                        }}
+                      >
+                        {bank.name}
+                      </label>
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--as-text-secondary)',
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        Recorded:{' '}
+                        <span
+                          style={{
+                            color:
+                              current < 0 ? 'var(--as-status-error)' : 'var(--as-text-secondary)',
+                          }}
+                        >
+                          {fmtCurrency(current)}
+                        </span>
+                      </div>
+                    </div>
 
-          <div className="pt-6 border-t border-retro-dim mt-6">
-            <button
-              type="submit"
-              className="w-full bg-retro-green text-retro-black font-bold py-4 hover:bg-retro-amber transition-colors uppercase tracking-widest text-lg cursor-pointer"
-              aria-label="Confirm actuals and update account balances"
+                    <div className="form-group" style={{ marginBottom: 0, width: 220 }}>
+                      <input
+                        id={`balance_${bank.id}`}
+                        name={`balance_${bank.id}`}
+                        type="number"
+                        step="0.01"
+                        required
+                        defaultValue={current.toFixed(2)}
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                          textAlign: 'right',
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'flex-end',
+                gap: 10,
+                marginTop: 20,
+              }}
             >
-              CONFIRM ACTUALS & UPDATE
-            </button>
-          </div>
-        </form>
+              <Link href="/dashboard/this-month" className="btn btn-secondary">
+                Cancel
+              </Link>
+              <button type="submit" className="btn btn-primary">
+                Save Reconciled Balances
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

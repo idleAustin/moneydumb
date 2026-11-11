@@ -1,3 +1,4 @@
+// Public authentication and instant sandbox launch screen.
 'use client';
 
 import { useState } from 'react';
@@ -11,6 +12,8 @@ export default function LoginPage() {
   const [loadingAuth, setLoadingAuth] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const isBusy = loadingDemo || loadingAuth;
+
   const handleDemoClick = async () => {
     setLoadingDemo(true);
     setErrorMessage('');
@@ -19,12 +22,12 @@ export default function LoginPage() {
       if (res?.success) {
         window.location.href = '/dashboard/this-month';
       } else {
-        setErrorMessage(res?.message || 'Sandbox initialization failed');
+        setErrorMessage(res?.message || 'Sandbox initialization failed. Try again or sign in with credentials.');
         setLoadingDemo(false);
       }
     } catch (err) {
       console.error('Sandbox error:', err);
-      setErrorMessage('Sandbox session initialization failed');
+      setErrorMessage('Sandbox session could not start. Verify the local server is running and retry.');
       setLoadingDemo(false);
     }
   };
@@ -40,115 +43,37 @@ export default function LoginPage() {
       if (res?.success) {
         window.location.href = '/dashboard/this-month';
       } else {
-        setErrorMessage(res?.message || 'Invalid identity or passcode');
+        setErrorMessage(res?.message || 'Username or passcode did not match an existing identity.');
         setLoadingAuth(false);
       }
     } catch (err) {
       console.error('Auth error:', err);
-      setErrorMessage('Authentication service unavailable');
+      setErrorMessage('Authentication service unavailable. Check your connection and retry.');
       setLoadingAuth(false);
     }
   };
 
   return (
-    <div 
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-        backgroundColor: 'var(--as-bg-base)',
-        fontFamily: 'var(--as-font-body)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}
-    >
-      {/* Header section */}
-      <div style={{ textAlign: 'center', marginBottom: '32px', zIndex: 10 }}>
-        <h1 
-          style={{
-            fontFamily: 'var(--as-font-heading)',
-            fontSize: 'clamp(1.75rem, 6vw, 2.25rem)',
-            fontWeight: 800,
-            color: 'var(--as-text-primary)',
-            letterSpacing: '-0.03em',
-            margin: 0
-          }}
-        >
-          MONEY_DUMB
-        </h1>
-        <p 
-          style={{
-            fontSize: '0.8rem',
-            color: 'var(--as-text-secondary)',
-            letterSpacing: '0.12em',
-            textTransform: 'uppercase',
-            marginTop: '8px',
-            fontWeight: 500,
-            fontFamily: 'var(--as-font-mono)'
-          }}
-        >
-          Financial Command Center
-        </p>
-      </div>
+    <main id="main-content" className="auth-shell" tabIndex={-1}>
+      <header className="auth-header">
+        <h1 className="auth-wordmark">MONEY_DUMB</h1>
+        <p className="auth-subtitle">Cash-flow and debt-payoff command center</p>
+      </header>
 
-      {/* Auth Card */}
-      <div 
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          backgroundColor: 'var(--as-bg-surface)',
-          border: '1px solid var(--as-border-subtle)',
-          borderRadius: 'var(--as-radius-lg)',
-          padding: 'clamp(20px, 5vw, 40px)',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
-          zIndex: 10
-        }}
+      <section
+        className="auth-card"
+        aria-label="Sign in or launch sandbox"
+        style={{ padding: 'clamp(20px, 5vw, 40px)' }}
       >
-        {/* Sandbox quick access */}
-        <div style={{ marginBottom: '32px', textAlign: 'center', borderBottom: '1px solid var(--as-border-subtle)', paddingBottom: '24px' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--as-text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '12px', fontWeight: 600, fontFamily: 'var(--as-font-mono)' }}>
-            Preloaded sandbox environment
+        <div className="auth-sandbox-block">
+          <p className="auth-sandbox-caption">
+            Explore a preloaded 38-bill monthly ledger without creating an account.
           </p>
-          <button 
+          <button
             type="button"
+            className="auth-sandbox-btn"
             onClick={handleDemoClick}
-            disabled={loadingDemo || loadingAuth}
-            aria-label={loadingDemo ? 'Initializing sandbox session' : 'Enter sandbox mode'}
-            style={{
-              width: '100%',
-              backgroundColor: 'var(--as-accent-muted)',
-              border: '1px solid var(--as-border-subtle)',
-              color: 'var(--as-accent-primary)',
-              padding: '12px 20px',
-              borderRadius: 'var(--as-radius-md)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              cursor: (loadingDemo || loadingAuth) ? 'not-allowed' : 'pointer',
-              transition: 'all var(--as-duration-normal) var(--as-ease-snap)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => {
-              if (!loadingDemo && !loadingAuth) {
-                e.currentTarget.style.backgroundColor = 'rgba(132, 204, 22, 0.2)';
-                e.currentTarget.style.borderColor = 'var(--as-accent-primary)';
-                e.currentTarget.style.boxShadow = '0 0 12px var(--as-accent-glow)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!loadingDemo && !loadingAuth) {
-                e.currentTarget.style.backgroundColor = 'var(--as-accent-muted)';
-                e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
-                e.currentTarget.style.boxShadow = 'none';
-              }
-            }}
+            disabled={isBusy}
           >
             {loadingDemo ? (
               <>
@@ -159,165 +84,72 @@ export default function LoginPage() {
                   aria-hidden="true"
                   focusable="false"
                 />
-                Initializing Sandbox...
+                <span>Initializing Sandbox...</span>
               </>
             ) : (
               <>
-                <Compass
-                  size={16}
-                  strokeWidth={2.0}
-                  aria-hidden="true"
-                  focusable="false"
-                />
-                Enter Sandbox Mode
+                <Compass size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                <span>Enter Sandbox Mode</span>
               </>
             )}
           </button>
         </div>
 
-        {/* Error message state */}
         {errorMessage && (
-          <div 
-            style={{
-              marginBottom: '20px',
-              backgroundColor: 'var(--as-status-error-bg)',
-              border: '1px solid var(--as-status-error)',
-              borderRadius: 'var(--as-radius-md)',
-              padding: '12px',
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-          >
+          <div className="auth-banner auth-banner-error" role="alert" aria-live="assertive">
             <AlertCircle
               size={16}
               strokeWidth={2.0}
-              color="var(--as-status-error)"
+              style={{ color: 'var(--as-status-error)', flexShrink: 0, marginTop: 2 }}
               aria-hidden="true"
               focusable="false"
             />
-            <p 
-              style={{ 
-                fontSize: '0.78rem', 
-                color: 'var(--as-status-error)', 
-                fontWeight: 600, 
-                textTransform: 'uppercase', 
-                letterSpacing: '0.05em', 
-                margin: 0,
-                fontFamily: 'var(--as-font-mono)'
-              }}
-            >
-              {errorMessage}
-            </p>
+            <span>{errorMessage}</span>
           </div>
         )}
 
-        {/* Regular Login Form */}
-        <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* Identity input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label 
-              htmlFor="login-username"
-              style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
-            >
-              Identity (Username)
+        <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <div className="auth-field">
+            <label htmlFor="login-username" className="auth-label">
+              Username
             </label>
             <input
               id="login-username"
               name="username"
               type="text"
-              placeholder="Enter your username"
+              className="auth-input"
+              placeholder="alex_stone"
+              autoComplete="username"
               required
-              disabled={loadingAuth || loadingDemo}
-              style={{
-                width: '100%',
-                backgroundColor: 'var(--as-bg-base)',
-                border: '1px solid var(--as-border-subtle)',
-                borderRadius: 'var(--as-radius-md)',
-                color: 'var(--as-text-primary)',
-                padding: '12px 14px',
-                fontSize: '1rem',
-                outline: 'none',
-                transition: 'border-color var(--as-duration-normal) var(--as-ease-snap), box-shadow var(--as-duration-normal) var(--as-ease-snap)'
-              }}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--as-border-focus)';
-                e.currentTarget.style.boxShadow = '0 0 0 1px var(--as-accent-primary)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              disabled={isBusy}
+              style={{ fontSize: '1rem' }}
             />
           </div>
 
-          {/* Passcode input */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', position: 'relative' }}>
-            <label 
-              htmlFor="login-password"
-              style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}
-            >
+          <div className="auth-field">
+            <label htmlFor="login-password" className="auth-label">
               Passcode
             </label>
             <div style={{ position: 'relative', width: '100%' }}>
               <input
                 id="login-password"
                 name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="••••••••"
+                type={showPassword ? 'text' : 'password'}
+                className="auth-input auth-input-password"
+                placeholder="Enter passcode"
+                autoComplete="current-password"
                 required
-                disabled={loadingAuth || loadingDemo}
-                style={{
-                  width: '100%',
-                  backgroundColor: 'var(--as-bg-base)',
-                  border: '1px solid var(--as-border-subtle)',
-                  borderRadius: 'var(--as-radius-md)',
-                  color: 'var(--as-text-primary)',
-                  padding: '12px 14px',
-                  paddingRight: '48px',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  transition: 'border-color var(--as-duration-normal) var(--as-ease-snap), box-shadow var(--as-duration-normal) var(--as-ease-snap)'
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--as-border-focus)';
-                  e.currentTarget.style.boxShadow = '0 0 0 1px var(--as-accent-primary)';
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--as-border-subtle)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
+                disabled={isBusy}
+                style={{ fontSize: '1rem' }}
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                className="auth-pw-toggle"
+                onClick={() => setShowPassword((prev) => !prev)}
                 aria-label={showPassword ? 'Hide passcode' : 'Show passcode'}
-                style={{
-                  position: 'absolute',
-                  right: '2px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: '44px',
-                  height: '44px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--as-text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: 0,
-                  transition: 'color var(--as-duration-fast) var(--as-ease-snap)'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.color = 'var(--as-text-primary)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.color = 'var(--as-text-secondary)';
-                }}
+                aria-pressed={showPassword}
+                disabled={isBusy}
+                style={{ width: '44px', height: '44px' }}
               >
                 {showPassword ? (
                   <EyeOff size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
@@ -328,45 +160,10 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Authenticate Button */}
-          <button 
+          <button
             type="submit"
-            disabled={loadingAuth || loadingDemo}
-            aria-label={loadingAuth ? 'Authenticating credentials' : 'Authenticate session'}
-            style={{
-              width: '100%',
-              backgroundColor: (loadingAuth || loadingDemo) ? 'var(--as-accent-muted)' : 'var(--as-accent-primary)',
-              border: 'none',
-              color: (loadingAuth || loadingDemo) ? 'var(--as-accent-primary)' : 'var(--as-accent-text)',
-              padding: '14px',
-              borderRadius: 'var(--as-radius-md)',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              cursor: (loadingAuth || loadingDemo) ? 'not-allowed' : 'pointer',
-              transition: 'all var(--as-duration-normal) var(--as-ease-snap)',
-              marginTop: '10px',
-              boxShadow: (loadingAuth || loadingDemo) ? 'none' : '0 0 12px var(--as-accent-glow)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}
-            onMouseOver={(e) => {
-              if (!loadingAuth && !loadingDemo) {
-                e.currentTarget.style.backgroundColor = 'var(--as-accent-hover)';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 0 16px var(--as-accent-glow)';
-              }
-            }}
-            onMouseOut={(e) => {
-              if (!loadingAuth && !loadingDemo) {
-                e.currentTarget.style.backgroundColor = 'var(--as-accent-primary)';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 0 12px var(--as-accent-glow)';
-              }
-            }}
+            className="auth-submit-btn"
+            disabled={isBusy}
           >
             {loadingAuth ? (
               <>
@@ -377,70 +174,23 @@ export default function LoginPage() {
                   aria-hidden="true"
                   focusable="false"
                 />
-                Authenticating...
+                <span>Signing In...</span>
               </>
             ) : (
-              'Authenticate'
+              <span>Sign In</span>
             )}
           </button>
         </form>
 
-        {/* Identity Registration Link */}
-        <div style={{ marginTop: '28px', textAlign: 'center' }}>
-          <Link 
-            href="/register" 
-            aria-label="Create new identity registration"
-            style={{
-              fontSize: '0.75rem',
-              color: 'var(--as-text-muted)',
-              textDecoration: 'none',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: 500,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'color var(--as-duration-fast) var(--as-ease-snap)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.color = 'var(--as-accent-primary)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.color = 'var(--as-text-muted)';
-            }}
-          >
-            <span>Create New Identity</span>
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <Link href="/register" className="auth-switch-link">
+            <span>Create an account</span>
             <ArrowRight size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
           </Link>
         </div>
+      </section>
 
-      </div>
-
-      {/* Page Footer */}
-      <div 
-        style={{
-          marginTop: '24px',
-          position: 'relative',
-          zIndex: 10,
-          textAlign: 'center',
-          fontSize: '0.65rem',
-          color: 'var(--as-text-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.15em',
-          fontWeight: 600,
-          fontFamily: 'var(--as-font-mono)'
-        }}
-      >
-        SECURE_CONNECTION // ACTIVE
-      </div>
-
-      {/* Keyframes for spin loader */}
-      <style dangerouslySetInnerHTML={{__html: `
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}} />
-    </div>
+      <footer className="auth-footer-status">Encrypted session · Self-hosted and cloud workspace</footer>
+    </main>
   );
 }

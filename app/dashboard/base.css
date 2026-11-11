@@ -40,6 +40,7 @@
   /* Text & Neutral Hierarchy */
   --as-text-primary: #f4f4f5;
   --as-text-secondary: #a1a1aa;
+  --as-text-tertiary: #9494a1;
   --as-text-muted: #71717a;
 
   /* Geometry & Radius */
@@ -71,7 +72,7 @@
   --text-primary: var(--as-text-primary);
   --text-secondary: var(--as-text-secondary);
   --text-muted: var(--as-text-muted);
-  --text-dim: var(--as-text-muted);
+  --text-dim: var(--as-text-tertiary);
   --foreground: var(--as-text-primary);
   --accent: var(--as-accent-primary);
   --accent-hover: var(--as-accent-hover);
@@ -99,16 +100,16 @@
   --border-color: var(--as-border-subtle);
   --border-hover: var(--as-border-strong);
   --border-accent: var(--as-border-focus);
-  --border-glow: 0 0 0 1px var(--as-accent-primary), 0 0 12px var(--as-accent-glow);
+  --border-glow: 0 0 0 1px var(--as-accent-primary), 0 2px 8px rgba(0, 0, 0, 0.45);
   --r: var(--as-radius-md);
   --r-sm: var(--as-radius-sm);
   --r-md: var(--as-radius-md);
   --r-lg: var(--as-radius-lg);
   --r-xl: var(--as-radius-lg);
   --r-pill: var(--as-radius-pill);
-  --glow-sm: 0 0 12px var(--as-accent-glow);
-  --glow-md: 0 0 24px var(--as-accent-glow);
-  --glow-lg: 0 0 36px var(--as-accent-glow);
+  --glow-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+  --glow-md: 0 6px 16px rgba(0, 0, 0, 0.5);
+  --glow-lg: 0 12px 28px rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.5);
@@ -128,15 +129,47 @@
 
 /* ========== RESET & BASE TYPOGRAPHY ========== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+html { color-scheme: dark; }
 body {
   background-color: var(--as-bg-base);
   color: var(--as-text-primary);
   font-family: var(--as-font-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-h1, h2, h3, h4, h5, h6 { font-family: var(--as-font-heading); }
-code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
+::selection {
+  background-color: rgba(132, 204, 22, 0.24);
+  color: var(--as-text-primary);
+}
+input, textarea, [contenteditable="true"] {
+  caret-color: var(--as-accent-primary);
+}
+a {
+  text-underline-offset: 3px;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--as-font-heading);
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+code, kbd, samp, pre, .telemetry, .amount, .tabular-nums {
+  font-family: var(--as-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* Custom Scrollbar — Pure Obsidian */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -160,10 +193,8 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   height: 7px;
   border-radius: var(--as-radius-pill);
   background: var(--as-accent-primary);
-  box-shadow: 0 0 8px var(--as-accent-glow);
   display: inline-block;
   flex-shrink: 0;
-  animation: telemetry-pulse 3s infinite ease-in-out;
 }
 .status-badge {
   display: inline-flex;
@@ -174,7 +205,7 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   border: 1px solid var(--as-border-subtle);
   border-radius: var(--as-radius-pill);
   font-family: var(--as-font-mono);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--as-text-secondary);
   letter-spacing: 0.02em;
@@ -186,15 +217,15 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
 /* Monospace Keyboard Badge */
 .kbd {
   font-family: var(--as-font-mono);
-  font-size: 10px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--as-text-muted);
+  letter-spacing: 0.03em;
+  color: var(--as-text-tertiary);
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
   padding: 2px 6px;
   border-radius: var(--as-radius-sm);
-  line-height: 1;
+  line-height: 1.1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -207,27 +238,30 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-height: 34px;
   padding: 6px 12px;
   background: var(--as-bg-surface);
   border: 1px solid var(--as-border-subtle);
   border-radius: var(--as-radius-md);
   color: var(--as-text-secondary);
   font-family: var(--as-font-body);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
-  outline: none;
-  transition: all var(--as-duration-normal) var(--as-ease-snap);
+  transition: background-color var(--as-duration-normal) var(--as-ease-snap),
+              border-color var(--as-duration-normal) var(--as-ease-snap),
+              color var(--as-duration-normal) var(--as-ease-snap),
+              box-shadow var(--as-duration-normal) var(--as-ease-snap);
 }
 .cmd-trigger-btn:hover {
   background: var(--as-bg-elevated);
   border-color: var(--as-border-strong);
   color: var(--as-text-primary);
-  box-shadow: 0 0 12px var(--as-accent-glow);
+  box-shadow: var(--shadow-sm);
 }
 .cmd-trigger-btn:hover .kbd { border-color: var(--as-accent-primary); color: var(--as-accent-primary); }
 .cmd-trigger-btn:focus-visible { outline: 2px solid var(--as-accent-primary); outline-offset: 2px; }
-.cmd-trigger-icon { color: var(--as-text-muted); flex-shrink: 0; transition: color var(--as-duration-fast) ease; }
+.cmd-trigger-icon { color: var(--as-text-tertiary); flex-shrink: 0; transition: color var(--as-duration-fast) ease; }
 .cmd-trigger-btn:hover .cmd-trigger-icon { color: var(--as-accent-primary); }
 
 /* Persistent Top Telemetry Bar */
@@ -290,18 +324,23 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   border-bottom: 1px solid var(--as-border-subtle);
   background-color: var(--as-bg-surface);
 }
-.cmd-search-bar svg { color: var(--as-text-muted); flex-shrink: 0; }
+.cmd-search-bar svg { color: var(--as-text-tertiary); flex-shrink: 0; }
 .cmd-search-input {
   flex: 1;
   background: transparent;
   border: none;
-  outline: none;
+  border-radius: var(--as-radius-sm);
   color: var(--as-text-primary);
   font-family: var(--as-font-body);
   font-size: 0.95rem;
   line-height: 1.4;
+  padding: 2px 4px;
 }
-.cmd-search-input::placeholder { color: var(--as-text-muted); }
+.cmd-search-input:focus-visible {
+  outline: 2px solid var(--as-accent-primary);
+  outline-offset: 2px;
+}
+.cmd-search-input::placeholder { color: var(--as-text-tertiary); opacity: 1; }
 .cmd-list {
   max-height: 360px;
   overflow-y: auto;
@@ -329,30 +368,30 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
 }
 .cmd-item:hover, .cmd-item.selected { background-color: var(--as-bg-overlay); color: var(--as-text-primary); }
 .cmd-item-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.cmd-item-left svg { color: var(--as-text-muted); flex-shrink: 0; transition: color var(--as-duration-fast) var(--as-ease-snap); }
+.cmd-item-left svg { color: var(--as-text-tertiary); flex-shrink: 0; transition: color var(--as-duration-fast) var(--as-ease-snap); }
 .cmd-item:hover .cmd-item-left svg, .cmd-item.selected .cmd-item-left svg { color: var(--as-accent-primary); }
 .cmd-item-label { font-family: var(--as-font-body); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cmd-item-category {
   font-family: var(--as-font-mono);
-  font-size: 0.65rem;
+  font-size: 0.6875rem;
   font-weight: 500;
-  color: var(--as-text-muted);
+  color: var(--as-text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   background-color: rgba(255, 255, 255, 0.04);
   padding: 2px 6px;
   border-radius: var(--as-radius-sm);
   margin-left: 6px;
 }
 .cmd-item:hover .cmd-item-category, .cmd-item.selected .cmd-item-category {
-  color: var(--as-text-secondary);
-  background-color: rgba(132, 204, 22, 0.1);
+  color: var(--as-text-primary);
+  background-color: rgba(132, 204, 22, 0.12);
 }
 .cmd-item:hover .kbd, .cmd-item.selected .kbd { border-color: var(--as-accent-primary); color: var(--as-accent-primary); }
 .cmd-empty-state {
   padding: 36px 16px;
   text-align: center;
-  color: var(--as-text-muted);
+  color: var(--as-text-tertiary);
   font-size: 0.875rem;
   font-family: var(--as-font-body);
 }
@@ -364,7 +403,7 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   background-color: var(--as-bg-surface);
   border-top: 1px solid var(--as-border-subtle);
   font-size: 0.72rem;
-  color: var(--as-text-muted);
+  color: var(--as-text-tertiary);
   font-family: var(--as-font-mono);
 }
 .cmd-footer-shortcuts { display: flex; align-items: center; gap: 12px; }
@@ -389,8 +428,15 @@ code, kbd, samp, pre, .telemetry, .amount { font-family: var(--as-font-mono); }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+    transition-property: color, background-color, border-color, opacity, box-shadow !important;
+    transition-duration: 120ms !important;
+  }
+
+  .animate-spin,
+  .spinner {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

@@ -73,7 +73,8 @@
     -webkit-overflow-scrolling: touch;
     padding-bottom: env(safe-area-inset-bottom, 0px);
     z-index: 300;
-    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
+    box-shadow: none;
+    pointer-events: none;
     transition: left var(--as-duration-normal) var(--as-ease-snap);
     display: flex !important;
     background: var(--as-bg-elevated);
@@ -84,6 +85,8 @@
   }
   .sidebar-mobile-open {
     left: 0;
+    pointer-events: auto;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.7);
   }
   .sidebar-mobile-open .sidebar-logo {
     display: block !important;
@@ -98,6 +101,7 @@
     display: flex !important;
   }
   .sidebar-mobile-open nav a,
+  .sidebar-mobile-open .sidebar-action-btn,
   .sidebar-mobile-open .shutdown-btn {
     justify-content: flex-start;
     padding: 10px 16px;
@@ -146,10 +150,10 @@
     font-size: 1.25rem;
   }
   .stat-card .stat-label {
-    font-size: 0.65rem;
+    font-size: 0.6875rem;
   }
   .stat-card .stat-sub {
-    font-size: 0.65rem;
+    font-size: 0.6875rem;
   }
 
   /* ---- Card: less padding ---- */
@@ -226,6 +230,10 @@
     font-size: 16px; /* Prevents iOS zoom on focus */
     height: 44px;
   }
+  .inline-edit-input {
+    font-size: 16px;
+    min-height: 40px;
+  }
 
   /* ---- Modals: near-fullscreen on mobile ---- */
   .modal-overlay {
@@ -238,7 +246,7 @@
     border-radius: var(--as-radius-lg) var(--as-radius-lg) 0 0;
     border: 1px solid var(--as-border-strong);
     border-bottom: none;
-    padding: 24px 16px;
+    padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
     animation: slideUpMobile 0.25s var(--as-ease-snap);
   }
   .modal h3 {
@@ -261,14 +269,14 @@
     font-size: 0.78rem;
   }
   .btn-small {
-    min-height: 34px;
+    min-height: 36px;
     padding: 6px 10px;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
   }
 
   /* ---- Badges: mobile sizing ---- */
   .badge {
-    font-size: 0.62rem;
+    font-size: 0.6875rem;
     padding: 2px 8px;
   }
 
@@ -349,7 +357,7 @@
 /* ---- Extra small screens (< 400px) ---- */
 @media (max-width: 400px) {
   .main-content {
-    padding: 68px 8px 20px !important;
+    padding: calc(68px + env(safe-area-inset-top, 0px)) 10px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
   }
   .card-grid-3.section,
   .card-grid-4.section {
@@ -362,8 +370,8 @@
     padding: 12px;
   }
   .card-header .btn {
-    font-size: 0.68rem;
-    padding: 5px 8px;
+    font-size: 0.6875rem;
+    padding: 6px 8px;
   }
   .page-header h2 {
     font-size: 1.05rem;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
@@ -13,21 +13,44 @@ import {
   Shuffle,
   Calendar,
   Sparkles,
+  Plus,
+  AlertTriangle,
 } from 'lucide-react';
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', {
+const fmt = (n: number | string) => {
+  const parsed = typeof n === 'number' ? n : Number(n);
+  const val = Number.isFinite(parsed) ? parsed : 0;
+  const normalized = Math.abs(val) < 0.005 ? 0 : val;
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(normalized);
+};
+
+type IncomeFrequency = 'weekly' | 'biweekly' | 'semimonthly' | 'monthly' | 'irregular';
+type AllocationType = 'percent' | 'fixed';
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  weekly: 'Weekly',
+  biweekly: 'Every 2 Weeks',
+  semimonthly: 'Twice Monthly',
+  monthly: 'Monthly',
+  irregular: 'Irregular',
+};
+
+const SPLIT_TYPE_LABELS: Record<string, string> = {
+  percent: 'Percent',
+  fixed: 'Fixed',
+};
 
 interface IncomeSource {
   id: string;
   name: string;
   gross_amount: number;
   net_amount: number;
-  frequency: 'weekly' | 'biweekly' | 'semimonthly' | 'monthly';
+  frequency: IncomeFrequency;
   next_pay_date: string | null;
   notes: string | null;
 }
@@ -36,7 +59,7 @@ interface IncomeAllocation {
   id: string;
   income_source_id: string;
   account_id: string;
-  allocation_type: 'percent' | 'fixed';
+  allocation_type: AllocationType;
   allocation_value: number;
 }
 
@@ -60,10 +83,25 @@ export default function Income() {
   const [allocations, setAllocations] = useState<IncomeAllocation[]>([]);
   const [events, setEvents] = useState<IncomeEvent[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   // Paycheck Sources Table Hook
   const sourcesTable = useTable<IncomeSource>(sources, {
-    searchKeys: ['name', 'frequency', 'next_pay_date', 'notes'],
+    searchKeys: [
+      'name',
+      'frequency',
+      (item) => FREQUENCY_LABELS[item.frequency] || item.frequency,
+      'next_pay_date',
+      'notes',
+    ],
+    sortExtractors: {
+      gross_amount: (item) => Number(item.gross_amount),
+      net_amount: (item) => Number(item.net_amount),
+      frequency: (item) => FREQUENCY_LABELS[item.frequency] || item.frequency,
+      next_pay_date: (item) => item.next_pay_date || '',
+    },
     defaultSort: { key: 'name', direction: 'asc' },
   });
 
@@ -73,11 +111,13 @@ export default function Income() {
       (item) => sources.find((s) => s.id === item.income_source_id)?.name || '',
       (item) => accounts.find((ac) => ac.id === item.account_id)?.name || '',
       'allocation_type',
+      (item) => SPLIT_TYPE_LABELS[item.allocation_type] || item.allocation_type,
     ],
     sortExtractors: {
       source: (item) => sources.find((s) => s.id === item.income_source_id)?.name || '',
       account: (item) => accounts.find((ac) => ac.id === item.account_id)?.name || '',
-      allocation_value: (item) => item.allocation_value,
+      allocation_type: (item) => SPLIT_TYPE_LABELS[item.allocation_type] || item.allocation_type,
+      allocation_value: (item) => Number(item.allocation_value),
     },
     defaultSort: { key: 'source', direction: 'asc' },
   });
@@ -93,8 +133,10 @@ export default function Income() {
     sortExtractors: {
       source: (item) => sources.find((s) => s.id === item.income_source_id)?.name || 'One-time',
       account: (item) => accounts.find((ac) => ac.id === item.account_id)?.name || '',
-      amount: (item) => item.amount,
+      amount: (item) => Number(item.amount),
       received_date: (item) => item.received_date,
+      is_bonus: (item) => (item.is_bonus ? 1 : 0),
+      notes: (item) => item.notes || '',
     },
     defaultSort: { key: 'received_date', direction: 'desc' },
   });
@@ -102,7 +144,14 @@ export default function Income() {
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [showAllocModal, setShowAllocModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
-  const [sourceForm, setSourceForm] = useState({
+  const [sourceForm, setSourceForm] = useState<{
+    name: string;
+    gross_amount: string;
+    net_amount: string;
+    frequency: IncomeFrequency;
+    next_pay_date: string;
+    notes: string;
+  }>({
     name: '',
     gross_amount: '',
     net_amount: '',
@@ -110,7 +159,12 @@ export default function Income() {
     next_pay_date: '',
     notes: '',
   });
-  const [allocForm, setAllocForm] = useState({
+  const [allocForm, setAllocForm] = useState<{
+    income_source_id: string;
+    account_id: string;
+    allocation_type: AllocationType;
+    allocation_value: string;
+  }>({
     income_source_id: '',
     account_id: '',
     allocation_type: 'percent',
@@ -125,8 +179,8 @@ export default function Income() {
     notes: '',
   });
 
-  const load = () => {
-    Promise.all([
+  const load = useCallback(() => {
+    return Promise.all([
       axios.get('/api/income/sources').then((r) => r.data),
       axios.get('/api/income/allocations').then((r) => r.data),
       axios.get('/api/income/events').then((r) => r.data),
@@ -137,16 +191,39 @@ export default function Income() {
         setAllocations(a);
         setEvents(e);
         setAccounts(acc);
+        setError(null);
       })
-      .catch(console.error);
-  };
+      .catch((err) => {
+        console.error(err);
+        setError('Unable to load income data. Check your connection and try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (!showSourceModal && !showAllocModal && !showEventModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showEventModal) setShowEventModal(false);
+        else if (showAllocModal) setShowAllocModal(false);
+        else if (showSourceModal) setShowSourceModal(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showSourceModal, showAllocModal, showEventModal]);
 
   const handleSourceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
       await axios.post('/api/income/sources', {
         ...sourceForm,
@@ -164,36 +241,49 @@ export default function Income() {
         notes: '',
       });
       setShowSourceModal(false);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to add income source. Check the fields and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const updateSourceItem = async (id: string, payload: any) => {
+  const updateSourceItem = async (id: string, payload: Partial<IncomeSource>) => {
+    setError(null);
     try {
       await axios.put(`/api/income/sources/${id}`, payload);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to update income source. Please try again.');
     }
   };
 
   const deleteSourceItem = async (id: string) => {
+    setError(null);
     try {
       await axios.delete(`/api/income/sources/${id}`);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to delete income source. Please try again.');
     }
   };
 
   const handleAllocSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    const rawVal = parseFloat(allocForm.allocation_value) || 0;
+    const clampedVal =
+      allocForm.allocation_type === 'percent' ? Math.min(100, Math.max(0, rawVal)) : Math.max(0, rawVal);
+    setSubmitting(true);
+    setError(null);
     try {
       await axios.post('/api/income/allocations', {
         ...allocForm,
-        allocation_value: parseFloat(allocForm.allocation_value) || 0,
+        allocation_value: clampedVal,
       });
       setAllocForm({
         income_source_id: '',
@@ -202,29 +292,37 @@ export default function Income() {
         allocation_value: '',
       });
       setShowAllocModal(false);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to add allocation split. Check the fields and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const deleteAllocItem = async (id: string) => {
+    setError(null);
     try {
       await axios.delete(`/api/income/allocations/${id}`);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to delete allocation split. Please try again.');
     }
   };
 
   const handleEventSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
       await axios.post('/api/income/events', {
         ...eventForm,
         income_source_id: eventForm.income_source_id || null,
         account_id: eventForm.account_id || null,
-        amount: parseFloat(eventForm.amount) || 0,
+        amount: Math.max(0, parseFloat(eventForm.amount) || 0),
         notes: eventForm.notes || null,
       });
       setEventForm({
@@ -236,66 +334,120 @@ export default function Income() {
         notes: '',
       });
       setShowEventModal(false);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to log income event. Check the fields and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const updateEventItem = async (id: string, payload: any) => {
+  const updateEventItem = async (id: string, payload: Partial<IncomeEvent>) => {
+    setError(null);
     try {
       await axios.put(`/api/income/events/${id}`, payload);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to update income event. Please try again.');
     }
   };
 
   const deleteEventItem = async (id: string) => {
+    setError(null);
     try {
       await axios.delete(`/api/income/events/${id}`);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to delete income event. Please try again.');
     }
   };
 
   const monthlyIncome = sources.reduce((s, src) => {
-    const mult = { weekly: 4.33, biweekly: 2.167, semimonthly: 2, monthly: 1 };
-    return s + src.net_amount * (mult[src.frequency] || 1);
+    const mult: Record<string, number> = {
+      weekly: 4.33,
+      biweekly: 2.167,
+      semimonthly: 2,
+      monthly: 1,
+      irregular: 0,
+    };
+    return s + Number(src.net_amount) * (mult[src.frequency] ?? 1);
   }, 0);
+
+  const canAddSplit = sources.length > 0 && accounts.length > 0;
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <h2>Income</h2>
-        <p>Configure your paychecks, allocations, and track income events</p>
+        <p>Configure recurring paychecks, account splits, and deposit history.</p>
       </div>
+
+      {error && (
+        <div className="error-state-banner section" role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            onClick={() => {
+              setLoading(true);
+              load();
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="card-grid-3 section">
-        <div className="stat-card stat-green">
+        <div className="stat-card">
           <div className="stat-label">Monthly Net Income</div>
-          <div className="stat-value">{fmt(monthlyIncome)}</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 120, marginTop: 6 }} />
+          ) : (
+            <div className="stat-value tabular-nums">{fmt(monthlyIncome)}</div>
+          )}
         </div>
-        <div className="stat-card stat-blue">
+        <div className="stat-card">
           <div className="stat-label">Income Sources</div>
-          <div className="stat-value">{sources.length}</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 64, marginTop: 6 }} />
+          ) : (
+            <div className="stat-value tabular-nums">{sources.length}</div>
+          )}
         </div>
-        <div className="stat-card stat-amber">
+        <div className="stat-card">
           <div className="stat-label">Bonus Events</div>
-          <div className="stat-value">{events.filter((e) => e.is_bonus).length}</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 64, marginTop: 6 }} />
+          ) : (
+            <div className="stat-value tabular-nums">
+              {events.filter((e) => e.is_bonus).length}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Income Sources */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <Wallet size={18} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Wallet
+              size={16}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-text-secondary)' }}
+            />
             Paycheck Sources
           </h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <ExcelUpload
               templateName="income_sources_template.xlsx"
               templateColumns={[
@@ -322,8 +474,10 @@ export default function Income() {
                     errors.push(`Row ${i + 2}: Invalid Gross/Net Pay`);
                     continue;
                   }
-                  const freq = String(r['Frequency'] || 'biweekly').trim().toLowerCase();
-                  if (!['weekly', 'biweekly', 'semimonthly', 'monthly'].includes(freq)) {
+                  const freq = String(r['Frequency'] || 'biweekly')
+                    .trim()
+                    .toLowerCase();
+                  if (!['weekly', 'biweekly', 'semimonthly', 'monthly', 'irregular'].includes(freq)) {
                     errors.push(`Row ${i + 2}: Invalid Frequency "${freq}"`);
                     continue;
                   }
@@ -339,8 +493,9 @@ export default function Income() {
                       notes: r['Notes'] || null,
                     });
                     created++;
-                  } catch (e: any) {
-                    errors.push(`Row ${i + 2}: ${e.message}`);
+                  } catch (err: unknown) {
+                    const msg = err instanceof Error ? err.message : 'Import error';
+                    errors.push(`Row ${i + 2}: ${msg}`);
                   }
                 }
                 return { created, errors };
@@ -354,128 +509,175 @@ export default function Income() {
               setIsOpen={sourcesTable.setSearchOpen}
             />
             <button
+              type="button"
               className="btn btn-primary"
               onClick={() => setShowSourceModal(true)}
-              aria-label="Add income source"
             >
-              + Add Source
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Add Source
             </button>
           </div>
         </div>
-        {sources.length === 0 ? (
+        {loading ? (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}
+            aria-busy="true"
+            aria-label="Loading paycheck sources"
+          >
+            <div className="skeleton" style={{ height: 38, width: '100%' }} />
+            <div className="skeleton" style={{ height: 46, width: '100%' }} />
+            <div className="skeleton" style={{ height: 46, width: '100%' }} />
+          </div>
+        ) : sources.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
-              <Wallet size={32} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
+              <Wallet size={32} strokeWidth={1.5} aria-hidden="true" focusable="false" />
             </div>
-            <h3>Zero income sources configured.</h3>
-            <p>Register recurring paychecks to establish incoming cashflow telemetry.</p>
+            <h3>No income sources configured</h3>
+            <p>Register recurring paychecks to establish incoming cash-flow projections.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowSourceModal(true)}
+              style={{ marginTop: 12 }}
+            >
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Add Source
+            </button>
+          </div>
+        ) : sourcesTable.data.length === 0 ? (
+          <div className="empty-state">
+            <h3>No matching income sources</h3>
+            <p>No sources match &ldquo;{sourcesTable.searchQuery}&rdquo;.</p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={() => sourcesTable.setSearchQuery('')}
+              style={{ marginTop: 12 }}
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Name"
-                  sortKey="name"
-                  activeKey={sourcesTable.sortKey}
-                  activeDirection={sourcesTable.sortDirection}
-                  onClick={sourcesTable.requestSort}
-                />
-                <TableHeader
-                  label="Gross"
-                  sortKey="gross_amount"
-                  activeKey={sourcesTable.sortKey}
-                  activeDirection={sourcesTable.sortDirection}
-                  onClick={sourcesTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Net"
-                  sortKey="net_amount"
-                  activeKey={sourcesTable.sortKey}
-                  activeDirection={sourcesTable.sortDirection}
-                  onClick={sourcesTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Frequency"
-                  sortKey="frequency"
-                  activeKey={sourcesTable.sortKey}
-                  activeDirection={sourcesTable.sortDirection}
-                  onClick={sourcesTable.requestSort}
-                />
-                <TableHeader
-                  label="Next Pay Date"
-                  sortKey="next_pay_date"
-                  activeKey={sourcesTable.sortKey}
-                  activeDirection={sourcesTable.sortDirection}
-                  onClick={sourcesTable.requestSort}
-                />
-                <th scope="col" style={{ width: 140 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sourcesTable.data.map((s) => (
-                <tr key={s.id}>
-                  <td style={{ fontWeight: 600 }}>
-                    <InlineEdit
-                      value={s.name}
-                      type="text"
-                      format="raw"
-                      onSave={async (v) => {
-                        await updateSourceItem(s.id, { name: String(v) });
-                      }}
+          <div className="scroll-table-wrapper">
+            <div className="scroll-table-inner">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <TableHeader
+                      label="Name"
+                      sortKey="name"
+                      activeKey={sourcesTable.sortKey}
+                      activeDirection={sourcesTable.sortDirection}
+                      onClick={sourcesTable.requestSort}
                     />
-                  </td>
-                  <td className="amount">
-                    <InlineEdit
-                      value={s.gross_amount}
-                      onSave={async (v) => {
-                        await updateSourceItem(s.id, { gross_amount: Number(v) });
-                      }}
+                    <TableHeader
+                      label="Gross"
+                      sortKey="gross_amount"
+                      activeKey={sourcesTable.sortKey}
+                      activeDirection={sourcesTable.sortDirection}
+                      onClick={sourcesTable.requestSort}
+                      style={{ textAlign: 'right' }}
                     />
-                  </td>
-                  <td className="amount">
-                    <InlineEdit
-                      value={s.net_amount}
-                      onSave={async (v) => {
-                        await updateSourceItem(s.id, { net_amount: Number(v) });
-                      }}
+                    <TableHeader
+                      label="Net"
+                      sortKey="net_amount"
+                      activeKey={sourcesTable.sortKey}
+                      activeDirection={sourcesTable.sortDirection}
+                      onClick={sourcesTable.requestSort}
+                      style={{ textAlign: 'right' }}
                     />
-                  </td>
-                  <td>
-                    <span className="badge badge-blue">{s.frequency}</span>
-                  </td>
-                  <td style={{ color: 'var(--as-text-muted)' }}>{s.next_pay_date || '—'}</td>
-                  <td>
-                    <DeleteButton
-                      onDelete={() => deleteSourceItem(s.id)}
-                      ariaLabel={`Delete income source ${s.name}`}
+                    <TableHeader
+                      label="Frequency"
+                      sortKey="frequency"
+                      activeKey={sourcesTable.sortKey}
+                      activeDirection={sourcesTable.sortDirection}
+                      onClick={sourcesTable.requestSort}
                     />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <TableHeader
+                      label="Next Pay Date"
+                      sortKey="next_pay_date"
+                      activeKey={sourcesTable.sortKey}
+                      activeDirection={sourcesTable.sortDirection}
+                      onClick={sourcesTable.requestSort}
+                    />
+                    <th scope="col" style={{ width: 100 }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sourcesTable.data.map((s) => (
+                    <tr key={s.id}>
+                      <td style={{ fontWeight: 600 }}>
+                        <InlineEdit
+                          value={s.name}
+                          type="text"
+                          format="raw"
+                          onSave={async (v) => {
+                            await updateSourceItem(s.id, { name: String(v) });
+                          }}
+                        />
+                      </td>
+                      <td className="amount">
+                        <InlineEdit
+                          value={s.gross_amount}
+                          onSave={async (v) => {
+                            await updateSourceItem(s.id, { gross_amount: Number(v) });
+                          }}
+                        />
+                      </td>
+                      <td className="amount">
+                        <InlineEdit
+                          value={s.net_amount}
+                          onSave={async (v) => {
+                            await updateSourceItem(s.id, { net_amount: Number(v) });
+                          }}
+                        />
+                      </td>
+                      <td>
+                        <span className="badge badge-blue">
+                          {FREQUENCY_LABELS[s.frequency] || s.frequency}
+                        </span>
+                      </td>
+                      <td
+                        className="tabular-nums"
+                        style={{
+                          color: 'var(--as-text-secondary)',
+                          fontFamily: 'var(--as-font-mono)',
+                        }}
+                      >
+                        {s.next_pay_date || '—'}
+                      </td>
+                      <td>
+                        <DeleteButton
+                          onDelete={() => deleteSourceItem(s.id)}
+                          ariaLabel={`Delete income source ${s.name}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Allocations */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Shuffle
-              size={18}
+              size={16}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 6, color: 'var(--as-accent-primary)' }}
-            />{' '}
+              style={{ color: 'var(--as-text-secondary)' }}
+            />
             Paycheck Allocations
           </h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <TableSearch
               searchQuery={allocationsTable.searchQuery}
               setSearchQuery={allocationsTable.setSearchQuery}
@@ -483,98 +685,166 @@ export default function Income() {
               setIsOpen={allocationsTable.setSearchOpen}
             />
             <button
-              className="btn btn-primary btn-small"
+              type="button"
+              className="btn btn-secondary btn-small"
               onClick={() => setShowAllocModal(true)}
-              disabled={sources.length === 0 || accounts.length === 0}
-              aria-label="Add paycheck allocation split"
+              disabled={!canAddSplit}
             >
-              + Add Split
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Add Split
             </button>
           </div>
         </div>
-        <p style={{ fontSize: '0.85rem', color: 'var(--as-text-muted)', marginBottom: 16 }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--as-text-secondary)', marginBottom: 16 }}>
           Define how each paycheck is split across your bank accounts.
         </p>
-        {allocations.length === 0 ? (
+        {!loading && !canAddSplit && (
+          <p
+            style={{
+              fontSize: '0.8125rem',
+              color: 'var(--as-text-secondary)',
+              background: 'var(--as-bg-base)',
+              border: '1px solid var(--as-border-subtle)',
+              borderRadius: 'var(--as-radius-sm)',
+              padding: '10px 12px',
+              marginBottom: 16,
+            }}
+          >
+            {sources.length === 0 && accounts.length === 0
+              ? 'Add at least one paycheck source above and one bank account in Accounts before creating an allocation split.'
+              : sources.length === 0
+              ? 'Add at least one paycheck source above to enable allocation splits.'
+              : 'Add at least one bank account in Accounts to enable allocation splits.'}
+          </p>
+        )}
+        {loading ? (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}
+            aria-busy="true"
+            aria-label="Loading paycheck allocations"
+          >
+            <div className="skeleton" style={{ height: 38, width: '100%' }} />
+            <div className="skeleton" style={{ height: 44, width: '100%' }} />
+          </div>
+        ) : allocations.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
-            <p>Zero allocations configured. Specify automated splits between accounts.</p>
+            <h3>No paycheck splits configured</h3>
+            <p>Specify automated percentage or fixed-dollar splits across destination accounts.</p>
+            {canAddSplit && (
+              <button
+                type="button"
+                className="btn btn-primary btn-small"
+                onClick={() => setShowAllocModal(true)}
+                style={{ marginTop: 12 }}
+              >
+                <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                Add Split
+              </button>
+            )}
+          </div>
+        ) : allocationsTable.data.length === 0 ? (
+          <div className="empty-state" style={{ padding: 30 }}>
+            <h3>No matching allocations</h3>
+            <p>No allocation splits match &ldquo;{allocationsTable.searchQuery}&rdquo;.</p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={() => allocationsTable.setSearchQuery('')}
+              style={{ marginTop: 12 }}
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Source"
-                  sortKey="source"
-                  activeKey={allocationsTable.sortKey}
-                  activeDirection={allocationsTable.sortDirection}
-                  onClick={allocationsTable.requestSort}
-                />
-                <TableHeader
-                  label="Account"
-                  sortKey="account"
-                  activeKey={allocationsTable.sortKey}
-                  activeDirection={allocationsTable.sortDirection}
-                  onClick={allocationsTable.requestSort}
-                />
-                <TableHeader
-                  label="Type"
-                  sortKey="allocation_type"
-                  activeKey={allocationsTable.sortKey}
-                  activeDirection={allocationsTable.sortDirection}
-                  onClick={allocationsTable.requestSort}
-                />
-                <TableHeader
-                  label="Value"
-                  sortKey="allocation_value"
-                  activeKey={allocationsTable.sortKey}
-                  activeDirection={allocationsTable.sortDirection}
-                  onClick={allocationsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <th scope="col" style={{ width: 140 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocationsTable.data.map((a) => (
-                <tr key={a.id}>
-                  <td>{sources.find((s) => s.id === a.income_source_id)?.name || '—'}</td>
-                  <td>{accounts.find((ac) => ac.id === a.account_id)?.name || '—'}</td>
-                  <td>
-                    <span className="badge badge-purple">{a.allocation_type}</span>
-                  </td>
-                  <td className="amount">
-                    {a.allocation_type === 'percent' ? `${a.allocation_value}%` : fmt(a.allocation_value)}
-                  </td>
-                  <td>
-                    <DeleteButton
-                      onDelete={() => deleteAllocItem(a.id)}
-                      ariaLabel="Delete allocation split"
+          <div className="scroll-table-wrapper">
+            <div className="scroll-table-inner">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <TableHeader
+                      label="Source"
+                      sortKey="source"
+                      activeKey={allocationsTable.sortKey}
+                      activeDirection={allocationsTable.sortDirection}
+                      onClick={allocationsTable.requestSort}
                     />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <TableHeader
+                      label="Account"
+                      sortKey="account"
+                      activeKey={allocationsTable.sortKey}
+                      activeDirection={allocationsTable.sortDirection}
+                      onClick={allocationsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Type"
+                      sortKey="allocation_type"
+                      activeKey={allocationsTable.sortKey}
+                      activeDirection={allocationsTable.sortDirection}
+                      onClick={allocationsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Value"
+                      sortKey="allocation_value"
+                      activeKey={allocationsTable.sortKey}
+                      activeDirection={allocationsTable.sortDirection}
+                      onClick={allocationsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <th scope="col" style={{ width: 100 }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allocationsTable.data.map((a) => {
+                    const sourceName =
+                      sources.find((s) => s.id === a.income_source_id)?.name || 'Unknown source';
+                    const accountName =
+                      accounts.find((ac) => ac.id === a.account_id)?.name || 'Unknown account';
+                    return (
+                      <tr key={a.id}>
+                        <td>{sourceName}</td>
+                        <td>{accountName}</td>
+                        <td>
+                          <span className="badge badge-purple">
+                            {SPLIT_TYPE_LABELS[a.allocation_type] || a.allocation_type}
+                          </span>
+                        </td>
+                        <td className="amount">
+                          {a.allocation_type === 'percent'
+                            ? `${Number(a.allocation_value).toFixed(2)}%`
+                            : fmt(a.allocation_value)}
+                        </td>
+                        <td>
+                          <DeleteButton
+                            onDelete={() => deleteAllocItem(a.id)}
+                            ariaLabel={`Delete allocation split from ${sourceName} to ${accountName}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Income Events */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center' }}>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calendar
-              size={18}
+              size={16}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 6, color: 'var(--as-accent-primary)' }}
-            />{' '}
+              style={{ color: 'var(--as-text-secondary)' }}
+            />
             Income Events
           </h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <TableSearch
               searchQuery={eventsTable.searchQuery}
               setSearchQuery={eventsTable.setSearchQuery}
@@ -582,159 +852,209 @@ export default function Income() {
               setIsOpen={eventsTable.setSearchOpen}
             />
             <button
-              className="btn btn-primary btn-small"
+              type="button"
+              className="btn btn-secondary btn-small"
               onClick={() => setShowEventModal(true)}
-              aria-label="Log income event"
             >
-              + Log Income
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Log Income
             </button>
           </div>
         </div>
-        {events.length === 0 ? (
+        {loading ? (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}
+            aria-busy="true"
+            aria-label="Loading income events"
+          >
+            <div className="skeleton" style={{ height: 38, width: '100%' }} />
+            <div className="skeleton" style={{ height: 46, width: '100%' }} />
+            <div className="skeleton" style={{ height: 46, width: '100%' }} />
+          </div>
+        ) : events.length === 0 ? (
           <div className="empty-state" style={{ padding: 30 }}>
-            <p>Zero income events recorded in ledger.</p>
+            <h3>No income events logged</h3>
+            <p>Record received paychecks, bonuses, or one-time deposits in the ledger.</p>
+            <button
+              type="button"
+              className="btn btn-primary btn-small"
+              onClick={() => setShowEventModal(true)}
+              style={{ marginTop: 12 }}
+            >
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Log Income
+            </button>
+          </div>
+        ) : eventsTable.data.length === 0 ? (
+          <div className="empty-state" style={{ padding: 30 }}>
+            <h3>No matching income events</h3>
+            <p>No logged events match &ldquo;{eventsTable.searchQuery}&rdquo;.</p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={() => eventsTable.setSearchQuery('')}
+              style={{ marginTop: 12 }}
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Date"
-                  sortKey="received_date"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                />
-                <TableHeader
-                  label="Source"
-                  sortKey="source"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                />
-                <TableHeader
-                  label="Amount"
-                  sortKey="amount"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Bank Account"
-                  sortKey="account"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                />
-                <TableHeader
-                  label="Type"
-                  sortKey="is_bonus"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                />
-                <TableHeader
-                  label="Notes"
-                  sortKey="notes"
-                  activeKey={eventsTable.sortKey}
-                  activeDirection={eventsTable.sortDirection}
-                  onClick={eventsTable.requestSort}
-                />
-                <th scope="col" style={{ width: 140 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {eventsTable.data.map((e) => (
-                <tr key={e.id}>
-                  <td>{e.received_date}</td>
-                  <td>{sources.find((s) => s.id === e.income_source_id)?.name || 'One-time'}</td>
-                  <td className="amount" style={{ color: 'var(--as-accent-primary)' }}>
-                    <InlineEdit
-                      value={e.amount}
-                      onSave={async (v) => {
-                        await updateEventItem(e.id, { amount: Number(v) });
-                      }}
+          <div className="scroll-table-wrapper">
+            <div className="scroll-table-inner">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <TableHeader
+                      label="Date"
+                      sortKey="received_date"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
                     />
-                  </td>
-                  <td>
-                    <select
-                      value={e.account_id || ''}
-                      onChange={async (ev) => {
-                        await updateEventItem(e.id, { account_id: ev.target.value || null });
-                      }}
-                      style={{
-                        background: 'var(--as-bg-surface)',
-                        color: 'var(--as-text-primary)',
-                        border: '1px solid var(--as-border-subtle)',
-                        borderRadius: 'var(--as-radius-md)',
-                        padding: '4px 8px',
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                      }}
-                      aria-label="Assign account to income event"
-                    >
-                      <option value="">—</option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    {e.is_bonus ? (
-                      <span
-                        className="badge badge-amber"
-                        style={{ display: 'inline-flex', alignItems: 'center' }}
-                      >
-                        <Sparkles
-                          size={13}
-                          strokeWidth={2.0}
-                          aria-hidden="true"
-                          focusable="false"
-                          style={{ marginRight: 4 }}
-                        />{' '}
-                        Bonus
-                      </span>
-                    ) : (
-                      <span className="badge badge-blue">Regular</span>
-                    )}
-                  </td>
-                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
-                    <InlineEdit
-                      value={e.notes || ''}
-                      type="text"
-                      format="raw"
-                      onSave={async (v) => {
-                        await updateEventItem(e.id, { notes: String(v) || null });
-                      }}
+                    <TableHeader
+                      label="Source"
+                      sortKey="source"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
                     />
-                  </td>
-                  <td>
-                    <DeleteButton
-                      onDelete={() => deleteEventItem(e.id)}
-                      ariaLabel={`Delete income event ${e.received_date}`}
+                    <TableHeader
+                      label="Amount"
+                      sortKey="amount"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
+                      style={{ textAlign: 'right' }}
                     />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <TableHeader
+                      label="Bank Account"
+                      sortKey="account"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Type"
+                      sortKey="is_bonus"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Notes"
+                      sortKey="notes"
+                      activeKey={eventsTable.sortKey}
+                      activeDirection={eventsTable.sortDirection}
+                      onClick={eventsTable.requestSort}
+                    />
+                    <th scope="col" style={{ width: 100 }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {eventsTable.data.map((e) => {
+                    const sourceLabel =
+                      sources.find((s) => s.id === e.income_source_id)?.name || 'One-time';
+                    return (
+                      <tr key={e.id}>
+                        <td
+                          className="tabular-nums"
+                          style={{
+                            color: 'var(--as-text-secondary)',
+                            fontFamily: 'var(--as-font-mono)',
+                          }}
+                        >
+                          {e.received_date}
+                        </td>
+                        <td>{sourceLabel}</td>
+                        <td className="amount" style={{ color: 'var(--as-status-success)' }}>
+                          <InlineEdit
+                            value={e.amount}
+                            onSave={async (v) => {
+                              await updateEventItem(e.id, { amount: Number(v) });
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            value={e.account_id || ''}
+                            className="inline-table-select"
+                            onChange={async (ev) => {
+                              await updateEventItem(e.id, {
+                                account_id: ev.target.value || null,
+                              });
+                            }}
+                            aria-label={`Bank account for ${sourceLabel} income on ${e.received_date}`}
+                          >
+                            <option value="">Unassigned</option>
+                            {accounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          {e.is_bonus ? (
+                            <span
+                              className="badge badge-amber"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                            >
+                              <Sparkles
+                                size={13}
+                                strokeWidth={2.0}
+                                aria-hidden="true"
+                                focusable="false"
+                              />
+                              Bonus
+                            </span>
+                          ) : (
+                            <span className="badge badge-blue">Regular</span>
+                          )}
+                        </td>
+                        <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
+                          <InlineEdit
+                            value={e.notes || ''}
+                            type="text"
+                            format="raw"
+                            onSave={async (v) => {
+                              await updateEventItem(e.id, { notes: String(v) || null });
+                            }}
+                          />
+                        </td>
+                        <td>
+                          <DeleteButton
+                            onDelete={() => deleteEventItem(e.id)}
+                            ariaLabel={`Delete ${sourceLabel} income event on ${e.received_date}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Source Modal */}
       {showSourceModal && (
         <div className="modal-overlay" onClick={() => setShowSourceModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Income Source</h3>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="source-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="source-modal-title">Add Income Source</h3>
             <form onSubmit={handleSourceSubmit}>
               <div className="form-group">
-                <label>Name</label>
+                <label htmlFor="source-name">Name</label>
                 <input
+                  id="source-name"
                   required
                   value={sourceForm.name}
                   onChange={(e) => setSourceForm({ ...sourceForm, name: e.target.value })}
@@ -743,20 +1063,26 @@ export default function Income() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Gross Pay</label>
+                  <label htmlFor="source-gross">Gross Pay</label>
                   <input
+                    id="source-gross"
                     type="number"
                     step="0.01"
+                    min="0"
                     required
                     value={sourceForm.gross_amount}
-                    onChange={(e) => setSourceForm({ ...sourceForm, gross_amount: e.target.value })}
+                    onChange={(e) =>
+                      setSourceForm({ ...sourceForm, gross_amount: e.target.value })
+                    }
                   />
                 </div>
                 <div className="form-group">
-                  <label>Net Pay (Take Home)</label>
+                  <label htmlFor="source-net">Net Pay (Take Home)</label>
                   <input
+                    id="source-net"
                     type="number"
                     step="0.01"
+                    min="0"
                     required
                     value={sourceForm.net_amount}
                     onChange={(e) => setSourceForm({ ...sourceForm, net_amount: e.target.value })}
@@ -765,34 +1091,40 @@ export default function Income() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Frequency</label>
+                  <label htmlFor="source-frequency">Frequency</label>
                   <select
+                    id="source-frequency"
                     value={sourceForm.frequency}
                     onChange={(e) =>
                       setSourceForm({
                         ...sourceForm,
-                        frequency: e.target.value as any,
+                        frequency: e.target.value as IncomeFrequency,
                       })
                     }
                   >
                     <option value="weekly">Weekly</option>
-                    <option value="biweekly">Bi-weekly</option>
-                    <option value="semimonthly">Semi-monthly</option>
+                    <option value="biweekly">Every 2 Weeks</option>
+                    <option value="semimonthly">Twice Monthly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="irregular">Irregular</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Next Pay Date</label>
+                  <label htmlFor="source-next-pay-date">Next Pay Date</label>
                   <input
+                    id="source-next-pay-date"
                     type="date"
                     value={sourceForm.next_pay_date}
-                    onChange={(e) => setSourceForm({ ...sourceForm, next_pay_date: e.target.value })}
+                    onChange={(e) =>
+                      setSourceForm({ ...sourceForm, next_pay_date: e.target.value })
+                    }
                   />
                 </div>
               </div>
               <div className="form-group">
-                <label>Notes</label>
+                <label htmlFor="source-notes">Notes</label>
                 <input
+                  id="source-notes"
                   value={sourceForm.notes}
                   onChange={(e) => setSourceForm({ ...sourceForm, notes: e.target.value })}
                 />
@@ -802,16 +1134,11 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowSourceModal(false)}
-                  aria-label="Cancel source creation"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  aria-label="Save income source"
-                >
-                  Save
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Add Source'}
                 </button>
               </div>
             </form>
@@ -822,19 +1149,26 @@ export default function Income() {
       {/* Allocation Modal */}
       {showAllocModal && (
         <div className="modal-overlay" onClick={() => setShowAllocModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Allocation</h3>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="alloc-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="alloc-modal-title">Add Allocation Split</h3>
             <form onSubmit={handleAllocSubmit}>
               <div className="form-group">
-                <label>Income Source</label>
+                <label htmlFor="alloc-source">Income Source</label>
                 <select
+                  id="alloc-source"
                   required
                   value={allocForm.income_source_id}
                   onChange={(e) =>
                     setAllocForm({ ...allocForm, income_source_id: e.target.value })
                   }
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select source...</option>
                   {sources.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name}
@@ -843,13 +1177,14 @@ export default function Income() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Bank Account</label>
+                <label htmlFor="alloc-account">Bank Account</label>
                 <select
+                  id="alloc-account"
                   required
                   value={allocForm.account_id}
                   onChange={(e) => setAllocForm({ ...allocForm, account_id: e.target.value })}
                 >
-                  <option value="">Select...</option>
+                  <option value="">Select account...</option>
                   {accounts.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name}
@@ -859,27 +1194,31 @@ export default function Income() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Type</label>
+                  <label htmlFor="alloc-type">Type</label>
                   <select
+                    id="alloc-type"
                     value={allocForm.allocation_type}
                     onChange={(e) =>
                       setAllocForm({
                         ...allocForm,
-                        allocation_type: e.target.value as any,
+                        allocation_type: e.target.value as AllocationType,
                       })
                     }
                   >
-                    <option value="percent">Percentage</option>
-                    <option value="fixed">Fixed Amount</option>
+                    <option value="percent">Percent</option>
+                    <option value="fixed">Fixed</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>
-                    {allocForm.allocation_type === 'percent' ? 'Percentage' : 'Amount'}
+                  <label htmlFor="alloc-value">
+                    {allocForm.allocation_type === 'percent' ? 'Percent (0–100)' : 'Fixed Amount'}
                   </label>
                   <input
+                    id="alloc-value"
                     type="number"
                     step="0.01"
+                    min="0"
+                    max={allocForm.allocation_type === 'percent' ? '100' : undefined}
                     required
                     value={allocForm.allocation_value}
                     onChange={(e) =>
@@ -893,16 +1232,11 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAllocModal(false)}
-                  aria-label="Cancel allocation split creation"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  aria-label="Save allocation split"
-                >
-                  Save
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Add Split'}
                 </button>
               </div>
             </form>
@@ -913,14 +1247,23 @@ export default function Income() {
       {/* Event Modal */}
       {showEventModal && (
         <div className="modal-overlay" onClick={() => setShowEventModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Log Income Event</h3>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="event-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="event-modal-title">Log Income Event</h3>
             <form onSubmit={handleEventSubmit}>
               <div className="form-group">
-                <label>Source (optional)</label>
+                <label htmlFor="event-source">Source (optional)</label>
                 <select
+                  id="event-source"
                   value={eventForm.income_source_id}
-                  onChange={(e) => setEventForm({ ...eventForm, income_source_id: e.target.value })}
+                  onChange={(e) =>
+                    setEventForm({ ...eventForm, income_source_id: e.target.value })
+                  }
                 >
                   <option value="">None (one-time)</option>
                   {sources.map((s) => (
@@ -932,18 +1275,21 @@ export default function Income() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Amount</label>
+                  <label htmlFor="event-amount">Amount</label>
                   <input
+                    id="event-amount"
                     type="number"
                     step="0.01"
+                    min="0"
                     required
                     value={eventForm.amount}
                     onChange={(e) => setEventForm({ ...eventForm, amount: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Date Received</label>
+                  <label htmlFor="event-date">Date Received</label>
                   <input
+                    id="event-date"
                     type="date"
                     required
                     value={eventForm.received_date}
@@ -952,26 +1298,50 @@ export default function Income() {
                 </div>
               </div>
               <div
-                className="form-group"
-                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginBottom: 16,
+                  minHeight: 44,
+                }}
               >
                 <input
                   type="checkbox"
                   id="isBonus"
                   checked={eventForm.is_bonus}
                   onChange={(e) => setEventForm({ ...eventForm, is_bonus: e.target.checked })}
-                  style={{ width: 'auto' }}
+                  style={{
+                    width: 18,
+                    height: 18,
+                    minHeight: 18,
+                    padding: 0,
+                    margin: 0,
+                    accentColor: 'var(--as-accent-primary)',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
                 />
                 <label
                   htmlFor="isBonus"
-                  style={{ margin: 0, textTransform: 'none', fontSize: '0.9rem' }}
+                  style={{
+                    margin: 0,
+                    minHeight: 44,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--as-text-primary)',
+                    cursor: 'pointer',
+                  }}
                 >
-                  This is a bonus / irregular income
+                  Bonus or irregular income
                 </label>
               </div>
               <div className="form-group">
-                <label>Bank Account (optional)</label>
+                <label htmlFor="event-account">Bank Account (optional)</label>
                 <select
+                  id="event-account"
                   value={eventForm.account_id}
                   onChange={(e) => setEventForm({ ...eventForm, account_id: e.target.value })}
                 >
@@ -984,8 +1354,9 @@ export default function Income() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Notes</label>
+                <label htmlFor="event-notes">Notes</label>
                 <input
+                  id="event-notes"
                   value={eventForm.notes}
                   onChange={(e) => setEventForm({ ...eventForm, notes: e.target.value })}
                 />
@@ -995,16 +1366,11 @@ export default function Income() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowEventModal(false)}
-                  aria-label="Cancel income event creation"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  aria-label="Log income event entry"
-                >
-                  Log
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Log Income'}
                 </button>
               </div>
             </form>

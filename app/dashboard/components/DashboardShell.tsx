@@ -19,6 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import '../index.css';
+import { logoutUser } from '@/app/lib/actions';
 import DashboardSidebar, { DashboardShutdownScreen } from './DashboardSidebar';
 
 function clearSessionCookie() {
@@ -77,7 +78,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       .catch((err) => console.error('Failed to load user session info:', err));
   }, []);
 
-  // Keyboard shortcut listener for Command Palette (Cmd/Ctrl + K and Escape)
+  // Keyboard shortcut listener for Command Palette (Cmd/Ctrl + K) and Escape dismissal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -89,15 +90,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           }
           return !prev;
         });
-      } else if (e.key === 'Escape' && cmdOpen) {
-        e.preventDefault();
-        setCmdOpen(false);
+      } else if (e.key === 'Escape') {
+        if (cmdOpen) {
+          e.preventDefault();
+          setCmdOpen(false);
+        } else if (showShutdownModal) {
+          e.preventDefault();
+          setShowShutdownModal(false);
+        } else if (mobileMenuOpen) {
+          e.preventDefault();
+          setMobileMenuOpen(false);
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cmdOpen]);
+  }, [cmdOpen, showShutdownModal, mobileMenuOpen]);
 
   // Autofocus input and manage scroll lock when Command Palette opens
   useEffect(() => {
@@ -145,13 +154,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   };
 
   const handleLogout = async () => {
-    try {
-      clearSessionCookie();
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    clearSessionCookie();
+    await logoutUser();
   };
 
   // Command palette items
@@ -235,36 +239,42 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       />
 
       {/* Main Content Area */}
-      <main className={`main-content ${sidebarCollapsed ? 'main-content-expanded' : ''}`}>
-        {/* Top Telemetry Header Bar */}
-        <div className="top-telemetry-bar">
-          <div
-            className="status-badge"
-            role="status"
-            aria-label="Engine status: idle, but operational"
-          >
-            <span className="status-dot" aria-hidden="true" />
-            <span>idleAustin (idle, but operational)</span>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`main-content ${sidebarCollapsed ? 'main-content-expanded' : ''}`}
+      >
+        <div className="main-content-inner">
+          {/* Top Telemetry Header Bar */}
+          <div className="top-telemetry-bar">
+            <div
+              className="status-badge"
+              role="status"
+              aria-label="Engine status: idle, but operational"
+            >
+              <span className="status-dot" aria-hidden="true" />
+              <span>idleAustin (idle, but operational)</span>
+            </div>
+
+            <button
+              type="button"
+              className="cmd-trigger-btn"
+              onClick={() => {
+                setCmdSearch('');
+                setSelectedIndex(0);
+                setCmdOpen(true);
+              }}
+              aria-label="Quick Find or Jump (Press Cmd+K)"
+              title="Quick Find / Jump (⌘K)"
+            >
+              <Search size={14} className="cmd-trigger-icon" aria-hidden="true" focusable="false" />
+              <span className="cmd-trigger-label">Quick Find / Jump</span>
+              <kbd className="kbd" aria-hidden="true">⌘K</kbd>
+            </button>
           </div>
 
-          <button
-            type="button"
-            className="cmd-trigger-btn"
-            onClick={() => {
-              setCmdSearch('');
-              setSelectedIndex(0);
-              setCmdOpen(true);
-            }}
-            aria-label="Quick Find or Jump (Press Cmd+K)"
-            title="Quick Find / Jump (⌘K)"
-          >
-            <Search size={14} className="cmd-trigger-icon" aria-hidden="true" focusable="false" />
-            <span className="cmd-trigger-label">Quick Find / Jump</span>
-            <kbd className="kbd" aria-hidden="true">⌘K</kbd>
-          </button>
+          {children}
         </div>
-
-        {children}
       </main>
 
       {/* Interactive ⌘K Command Palette Modal */}
@@ -314,7 +324,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               aria-label="Command suggestions"
             >
               {filteredItems.length === 0 ? (
-                <div className="cmd-empty-state">Nothing here yet.</div>
+                <div className="cmd-empty-state">
+                  {query ? `No commands match "${cmdSearch.trim()}".` : 'Nothing here yet.'}
+                </div>
               ) : (
                 filteredItems.map((item, index) => {
                   const Icon = item.icon;

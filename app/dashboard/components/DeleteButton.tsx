@@ -23,6 +23,20 @@ export default function DeleteButton({
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (state !== 'counting') return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        setState('idle');
+        setCount(countdown);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state, countdown]);
+
+  useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
@@ -106,12 +120,16 @@ export default function DeleteButton({
             onClick={handleClick}
             aria-label={`Confirm delete in ${count} seconds`}
             style={{
-              animation: 'pulse 0.6s ease-in-out infinite',
               minWidth: 64,
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 4,
+              borderColor: 'var(--as-status-error)',
+              color: 'var(--as-status-error)',
+              background: 'var(--as-status-error-bg)',
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
             }}
           >
             <span>{count}s</span>

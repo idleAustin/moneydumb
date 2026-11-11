@@ -1,9 +1,36 @@
-import { getBanks, createBank, deleteBank, type BankAccount } from '../../lib/actions';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import {
+  Landmark,
+  ArrowLeft,
+  ChevronRight,
+  Trash2,
+  ClipboardCheck,
+} from 'lucide-react';
+import { getAuthUserId } from '@/app/lib/auth';
+import {
+  getBanks,
+  createBank,
+  deleteBank,
+  type BankAccount,
+} from '@/app/lib/actions';
+
+const fmtCurrency = (n: number) => {
+  const val = Object.is(n, -0) || Math.abs(n) < 0.00001 ? 0 : n;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
+};
 
 export default async function ManageBanks() {
+  const userId = await getAuthUserId();
+  if (!userId) {
+    redirect('/');
+  }
+
   const banks = await getBanks();
 
   async function addBankAction(formData: FormData) {
@@ -19,96 +46,305 @@ export default async function ManageBanks() {
     redirect('/dashboard/banks');
   }
 
+  const totalActual = banks.reduce((sum, b) => sum + Number(b.current_balance), 0);
+  const totalPending = banks.reduce((sum, b) => sum + Number(b.pending_total), 0);
+  const totalSafe = totalActual - totalPending;
+
   return (
-    <div className="min-h-screen bg-retro-black text-retro-green font-mono p-4 md:p-8">
-      <div className="flex justify-between items-center border-b-2 border-retro-dim pb-4 mb-8">
+    <div className="fade-in">
+      <div
+        className="page-header"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 12,
+        }}
+      >
         <div>
-          <h1 className="text-2xl font-bold tracking-tighter">BANK_MANAGER</h1>
-          <p className="text-xs text-retro-dim mt-1">&gt;&gt; SYSTEM_ROOT / ACCOUNTS</p>
+          <h2 style={{ display: 'flex', alignItems: 'center' }}>
+            <Landmark
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+            />
+            <span>Bank Liquidity</span>
+          </h2>
+          <p>Inspect per-account balances, pending obligations, and post-bill safe cash.</p>
         </div>
-        <Link
-          href="/dashboard/this-month"
-          className="text-xs border border-retro-dim px-4 py-2 hover:bg-retro-dim hover:text-retro-black transition-colors uppercase inline-flex items-center gap-1"
-          aria-label="Return to this month workspace"
-        >
-          <ArrowLeft size={12} aria-hidden="true" focusable="false" /> Back
-        </Link>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <Link
+            href="/dashboard/audit"
+            className="btn btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <ClipboardCheck size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Daily Audit</span>
+          </Link>
+          <Link
+            href="/dashboard/this-month"
+            className="btn btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>This Month</span>
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* ADD BANK */}
-        <div className="lg:col-span-1 border border-retro-dim bg-retro-gray/5 p-6 h-fit">
-          <h2 className="text-xl font-bold mb-6 border-b border-retro-dim pb-2">ADD_NEW_UNIT</h2>
-          <form action={addBankAction} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-widest text-retro-dim">Bank Name</label>
-              <input name="name" type="text" required className="w-full bg-transparent border-b border-retro-green p-2 focus:outline-none focus:border-retro-amber" placeholder="CHASE_CHK" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-widest text-retro-dim">Initial Balance</label>
-              <input name="balance" type="number" step="0.01" required className="w-full bg-transparent border-b border-retro-green p-2 focus:outline-none focus:border-retro-amber" placeholder="0.00" />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-retro-green text-retro-black font-bold py-3 hover:bg-retro-dim hover:text-retro-green transition-colors uppercase tracking-widest cursor-pointer"
-              aria-label="Initialize account"
-            >
-              INITIALIZE ACCOUNT
-            </button>
-          </form>
-        </div>
-
-        {/* BANK LIST WITH SAFE BALANCE */}
-        <div className="lg:col-span-2">
-          <h2 className="text-xl font-bold mb-6 border-b border-retro-dim pb-2">LIQUIDITY_MONITOR [{banks.length}]</h2>
-          
-          <div className="border border-retro-dim">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-retro-dim text-retro-black uppercase text-xs">
-                <tr>
-                  <th className="p-3">ACCOUNT</th>
-                  <th className="p-3 text-right text-retro-dim">BANK_BAL</th>
-                  <th className="p-3 text-right text-retro-red">PENDING</th>
-                  <th className="p-3 text-right text-retro-green">SAFE_TO_SPEND</th>
-                  <th className="p-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-retro-dim/30">
-                {banks.map((bank: BankAccount) => {
-                   const actual = Number(bank.current_balance);
-                   const pending = Number(bank.pending_total);
-                   const safe = actual - pending;
-                   
-                   return (
-                    <tr key={bank.id} className="hover:bg-retro-gray/10 transition-colors group">
-                      <td className="p-3 font-bold uppercase">{bank.name}</td>
-                      <td className="p-3 text-right text-retro-dim">${actual.toFixed(2)}</td>
-                      <td className="p-3 text-right text-retro-red">
-                        {pending > 0 ? `-$${pending.toFixed(2)}` : '-'}
-                      </td>
-                      <td className="p-3 text-right text-retro-green font-bold text-lg">
-                        ${safe.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right">
-                        <form action={deleteBankAction}>
-                          <input type="hidden" name="id" value={bank.id} />
-                          <button
-                            type="submit"
-                            className="text-xs text-retro-dim hover:text-retro-red inline-flex items-center gap-1"
-                            aria-label={`Delete bank account ${bank.name}`}
-                          >
-                            <Trash2 size={12} aria-hidden="true" focusable="false" /> DEL
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                   );
-                })}
-              </tbody>
-            </table>
+      <div className="card-grid-3 section">
+        <div className={`stat-card ${totalActual < 0 ? 'stat-red' : 'stat-blue'}`}>
+          <div className="stat-label">Total Balance</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              ...(totalActual < 0 ? { color: 'var(--as-status-error)' } : {}),
+            }}
+          >
+            {fmtCurrency(totalActual)}
+          </div>
+          <div
+            className="stat-sub"
+            style={{
+              color: 'var(--as-text-secondary)',
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {banks.length} {banks.length === 1 ? 'account' : 'accounts'}
           </div>
         </div>
+
+        <div className={`stat-card ${totalPending > 0 ? 'stat-amber' : 'stat-green'}`}>
+          <div className="stat-label">Pending Obligations</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              ...(totalPending > 0 ? { color: 'var(--as-status-error)' } : {}),
+            }}
+          >
+            {totalPending > 0 ? fmtCurrency(-totalPending) : fmtCurrency(0)}
+          </div>
+        </div>
+
+        <div className={`stat-card ${totalSafe < 0 ? 'stat-red' : 'stat-green'}`}>
+          <div className="stat-label">Safe to Spend</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              color: totalSafe < 0 ? 'var(--as-status-error)' : 'var(--as-status-success)',
+            }}
+          >
+            {fmtCurrency(totalSafe)}
+          </div>
+        </div>
+      </div>
+
+      <div className="card section">
+        <div className="card-header">
+          <h3>Add Bank Account</h3>
+        </div>
+        <form action={addBankAction}>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="bank-name">Account Name</label>
+              <input
+                id="bank-name"
+                name="name"
+                type="text"
+                required
+                placeholder="e.g. Chase Checking"
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="bank-balance">Initial Balance</label>
+              <input
+                id="bank-balance"
+                name="balance"
+                type="number"
+                step="0.01"
+                required
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+            <button type="submit" className="btn btn-primary">
+              + Add Account
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className="card section">
+        <div className="card-header">
+          <h3>Accounts</h3>
+          <span
+            className="badge badge-blue"
+            style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}
+          >
+            {banks.length} {banks.length === 1 ? 'account' : 'accounts'}
+          </span>
+        </div>
+
+        {banks.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <Landmark
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)' }}
+              />
+            </div>
+            <h3>No bank accounts recorded</h3>
+            <p>Use the form above to add a checking or savings account and monitor safe cash.</p>
+          </div>
+        ) : (
+          <div className="scroll-table-wrapper">
+            <div className="scroll-table-inner">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Account</th>
+                    <th scope="col" style={{ textAlign: 'right' }}>
+                      Current Balance
+                    </th>
+                    <th scope="col" style={{ textAlign: 'right' }}>
+                      Pending
+                    </th>
+                    <th scope="col" style={{ textAlign: 'right' }}>
+                      Safe to Spend
+                    </th>
+                    <th scope="col" style={{ width: 150, textAlign: 'right' }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {banks.map((bank: BankAccount) => {
+                    const actual = Number(bank.current_balance);
+                    const pending = Number(bank.pending_total);
+                    const safe = actual - pending;
+
+                    return (
+                      <tr key={bank.id}>
+                        <td>
+                          <Link
+                            href={`/dashboard/banks/${bank.id}`}
+                            style={{
+                              color: 'var(--as-text-primary)',
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              textDecoration: 'none',
+                            }}
+                          >
+                            <Landmark
+                              size={15}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                              style={{ color: 'var(--as-text-secondary)', flexShrink: 0 }}
+                            />
+                            <span style={{ textDecoration: 'underline', textUnderlineOffset: '3px' }}>
+                              {bank.name}
+                            </span>
+                            <ChevronRight
+                              size={14}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                              style={{ color: 'var(--as-text-secondary)', flexShrink: 0 }}
+                            />
+                          </Link>
+                        </td>
+                        <td
+                          className="amount"
+                          style={{
+                            fontFamily: 'var(--as-font-mono)',
+                            fontVariantNumeric: 'tabular-nums',
+                            color:
+                              actual < 0 ? 'var(--as-status-error)' : 'var(--as-text-primary)',
+                          }}
+                        >
+                          {fmtCurrency(actual)}
+                        </td>
+                        <td
+                          className="amount"
+                          style={{
+                            fontFamily: 'var(--as-font-mono)',
+                            fontVariantNumeric: 'tabular-nums',
+                            color:
+                              pending > 0 ? 'var(--as-status-error)' : 'var(--as-text-secondary)',
+                          }}
+                        >
+                          {pending > 0 ? fmtCurrency(-pending) : '—'}
+                        </td>
+                        <td
+                          className="amount"
+                          style={{
+                            fontFamily: 'var(--as-font-mono)',
+                            fontVariantNumeric: 'tabular-nums',
+                            fontWeight: 600,
+                            color:
+                              safe < 0 ? 'var(--as-status-error)' : 'var(--as-status-success)',
+                          }}
+                        >
+                          {fmtCurrency(safe)}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                              gap: 6,
+                            }}
+                          >
+                            <Link
+                              href={`/dashboard/banks/${bank.id}`}
+                              className="btn btn-secondary btn-small"
+                            >
+                              Details
+                            </Link>
+                            <form action={deleteBankAction} style={{ display: 'inline' }}>
+                              <input type="hidden" name="id" value={bank.id} />
+                              <button
+                                type="submit"
+                                className="btn btn-danger btn-small"
+                                aria-label={`Delete bank account ${bank.name}`}
+                              >
+                                <Trash2
+                                  size={14}
+                                  strokeWidth={2.0}
+                                  aria-hidden="true"
+                                  focusable="false"
+                                />
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

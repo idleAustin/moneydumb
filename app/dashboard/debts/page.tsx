@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import {
@@ -34,12 +34,47 @@ import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', {
+const fmt = (n: number | string) => {
+  const parsed = typeof n === 'number' ? n : Number(n);
+  const val = Number.isFinite(parsed) ? parsed : 0;
+  const normalized = Math.abs(val) < 0.005 ? 0 : val;
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(n);
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(normalized);
+};
+
+const parseCsvLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+};
 
 interface Debt {
   id: string;
@@ -86,34 +121,36 @@ interface PayoffPlanResult {
 }
 
 const DEBT_TYPES = [
-  { value: 'mortgage', label: 'Mortgage', icon: 'home' },
-  { value: 'car_loan', label: 'Car Loan', icon: 'directions_car' },
-  { value: 'credit_card', label: 'Credit Card', icon: 'credit_card' },
-  { value: 'personal_loan', label: 'Personal Loan', icon: 'handshake' },
-  { value: 'student_loan', label: 'Student Loan', icon: 'school' },
-  { value: 'medical', label: 'Medical', icon: 'local_hospital' },
-  { value: 'other', label: 'Other', icon: 'description' },
+  { value: 'mortgage', label: 'Mortgage' },
+  { value: 'car_loan', label: 'Car Loan' },
+  { value: 'credit_card', label: 'Credit Card' },
+  { value: 'personal_loan', label: 'Personal Loan' },
+  { value: 'student_loan', label: 'Student Loan' },
+  { value: 'medical', label: 'Medical' },
+  { value: 'other', label: 'Other' },
 ];
 
 const PAYMENT_STRATEGIES = [
-  { value: 'minimum', label: 'Minimum', icon: 'bedtime', color: 'var(--text-secondary)' },
-  { value: 'due_now', label: 'Due Now', icon: 'bolt', color: '#f43f5e' },
-  { value: 'payoff_plan', label: 'Payoff Plan', icon: 'bar_chart', color: 'var(--accent-blue)' },
+  { value: 'minimum', label: 'Minimum', color: 'var(--as-text-secondary)' },
+  { value: 'due_now', label: 'Due Now', color: 'var(--as-status-error)' },
+  { value: 'payoff_plan', label: 'Payoff Plan', color: 'var(--as-status-info)' },
 ];
 
 const QUALITY_CONFIG = {
   good: {
     label: 'Good',
-    color: 'var(--accent-green)',
-    icon: 'check_circle',
-    bg: 'rgba(34,197,94,0.12)',
+    color: 'var(--as-status-success)',
+    bg: 'color-mix(in srgb, var(--as-status-success) 14%, transparent)',
   },
-  bad: { label: 'Bad', color: 'var(--accent-red)', icon: 'cancel', bg: 'rgba(239,68,68,0.12)' },
+  bad: {
+    label: 'Bad',
+    color: 'var(--as-status-error)',
+    bg: 'color-mix(in srgb, var(--as-status-error) 14%, transparent)',
+  },
   neutral: {
     label: 'Neutral',
-    color: 'var(--accent-amber)',
-    icon: 'warning_amber',
-    bg: 'rgba(234,179,8,0.12)',
+    color: 'var(--as-status-warning)',
+    bg: 'color-mix(in srgb, var(--as-status-warning) 14%, transparent)',
   },
 };
 
@@ -122,6 +159,10 @@ const getDebtTypeLabel = (type: string) =>
 
 export default function Debts() {
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadingCsv, setUploadingCsv] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showBonusModal, setShowBonusModal] = useState(false);
   const [form, setForm] = useState({
@@ -147,46 +188,73 @@ export default function Debts() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkModalDebt, setLinkModalDebt] = useState<Debt | null>(null);
   const [linkModalUrl, setLinkModalUrl] = useState('');
+  const csvInputRef = useRef<HTMLInputElement>(null);
 
-  // Main Debts Table Hook
   const allDebtsTable = useTable<Debt>(debts, {
     searchKeys: ['name', 'debt_type', 'debt_quality', 'payment_strategy', 'url'],
     sortExtractors: {
-      balance: (item) => item.balance,
-      interest_rate: (item) => item.interest_rate,
-      minimum_payment: (item) => item.minimum_payment,
-      amount_due_immediately: (item) => item.amount_due_immediately || 0,
-      monthly_interest: (item) => (item.balance * item.interest_rate) / 100 / 12,
-      calculated_payment: (item) => item.calculated_payment || 0,
+      balance: (item) => Number(item.balance),
+      interest_rate: (item) => Number(item.interest_rate),
+      minimum_payment: (item) => Number(item.minimum_payment),
+      amount_due_immediately: (item) => Number(item.amount_due_immediately) || 0,
+      monthly_interest: (item) => (Number(item.balance) * Number(item.interest_rate)) / 100 / 12,
+      calculated_payment: (item) => Number(item.calculated_payment) || 0,
     },
     defaultSort: { key: 'name', direction: 'asc' },
   });
 
-  // Payoff Plan Config Modal Table Hook
   const payoffConfigTable = useTable<Debt>(debts, {
     searchKeys: ['name', 'debt_type'],
     sortExtractors: {
-      balance: (item) => item.balance,
-      interest_rate: (item) => item.interest_rate,
-      minimum_payment: (item) => item.minimum_payment,
+      balance: (item) => Number(item.balance),
+      interest_rate: (item) => Number(item.interest_rate),
+      minimum_payment: (item) => Number(item.minimum_payment),
     },
     defaultSort: { key: 'name', direction: 'asc' },
   });
 
-  const load = () => {
-    axios
-      .get('/api/debts')
-      .then((r) => setDebts(r.data))
-      .catch(console.error);
-    axios
-      .get('/api/debts/payoff/committed')
-      .then((r) => setCommittedPlan(r.data))
-      .catch(console.error);
-  };
+  const load = useCallback(() => {
+    return Promise.all([
+      axios.get('/api/debts'),
+      axios.get('/api/debts/payoff/committed').catch(() => ({ data: null })),
+    ])
+      .then(([debtsRes, committedRes]) => {
+        setDebts(debtsRes.data);
+        setCommittedPlan(committedRes.data);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Unable to load debt records. Check your connection and try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (!showModal && !showBonusModal && !showPayoffConfig && !showLinkModal) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showLinkModal) {
+          setShowLinkModal(false);
+          setLinkModalDebt(null);
+        } else if (showPayoffConfig) {
+          setShowPayoffConfig(false);
+        } else if (showBonusModal) {
+          setShowBonusModal(false);
+        } else if (showModal) {
+          setShowModal(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showModal, showBonusModal, showPayoffConfig, showLinkModal]);
 
   useEffect(() => {
     let active = true;
@@ -196,7 +264,7 @@ export default function Debts() {
         params.exclude_ids = excludedDebtIds.join(',');
       }
       if (targetMonths) {
-        params.target_months = parseInt(targetMonths);
+        params.target_months = parseInt(targetMonths, 10);
       }
       axios
         .get('/api/debts/payoff', { params })
@@ -247,13 +315,16 @@ export default function Debts() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
       await axios.post('/api/debts', {
         name: form.name,
         balance: parseFloat(form.balance),
         interest_rate: parseFloat(form.interest_rate) || 0,
         minimum_payment: parseFloat(form.minimum_payment),
-        due_day_of_month: form.due_day_of_month ? parseInt(form.due_day_of_month) : null,
+        due_day_of_month: form.due_day_of_month ? parseInt(form.due_day_of_month, 10) : null,
         debt_type: form.debt_type,
         amount_due_immediately: form.amount_due_immediately
           ? parseFloat(form.amount_due_immediately)
@@ -273,27 +344,34 @@ export default function Debts() {
         url: '',
       });
       setShowModal(false);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to save debt record. Check the fields and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const updateDebtItem = async (id: string, payload: any) => {
+    setError(null);
     try {
       await axios.put(`/api/debts/${id}`, payload);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to update debt record. Please try again.');
     }
   };
 
   const deleteDebtItem = async (id: string) => {
+    setError(null);
     try {
       await axios.delete(`/api/debts/${id}`);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to delete debt record. Please try again.');
     }
   };
 
@@ -305,20 +383,28 @@ export default function Debts() {
 
   const handleLinkSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!linkModalDebt) return;
+    if (!linkModalDebt || submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
-      await updateDebtItem(linkModalDebt.id, { url: linkModalUrl.trim() || null });
+      await axios.put(`/api/debts/${linkModalDebt.id}`, { url: linkModalUrl.trim() || null });
       setShowLinkModal(false);
       setLinkModalDebt(null);
       setLinkModalUrl('');
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to update website link. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleBonusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setError(null);
     try {
       const plan = await axios
         .post('/api/debts/bonus-plans', {
@@ -334,6 +420,9 @@ export default function Debts() {
       setShowBonusModal(false);
     } catch (err) {
       console.error(err);
+      setError('Unable to generate bonus allocation plan. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -361,12 +450,14 @@ export default function Debts() {
     URL.revokeObjectURL(url);
   };
 
+  const escapeCsvField = (value: string) => `"${value.replace(/"/g, '""')}"`;
+
   const downloadExport = () => {
     const headers =
       'name,debt_type,balance,interest_rate,minimum_payment,amount_due_immediately,due_day_of_month,payment_strategy,calculated_payment,url';
     const rows = debts.map((d) =>
       [
-        `"${d.name}"`,
+        escapeCsvField(d.name),
         d.debt_type,
         d.balance,
         d.interest_rate,
@@ -374,8 +465,8 @@ export default function Debts() {
         d.amount_due_immediately || 0,
         d.due_day_of_month || '',
         d.payment_strategy,
-        (d.calculated_payment || 0).toFixed(2),
-        d.url || '',
+        (Number(d.calculated_payment) || 0).toFixed(2),
+        d.url ? escapeCsvField(d.url) : '',
       ].join(',')
     );
     const csv = [headers, ...rows].join('\n');
@@ -391,17 +482,19 @@ export default function Debts() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadingCsv(true);
+    setError(null);
     try {
       const text = await file.text();
-      const lines = text.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'));
+      const lines = text.split(/\r?\n/).filter((l) => l.trim() && !l.trim().startsWith('#'));
       if (lines.length < 2) return;
-      const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+      const headers = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
       const validTypes = DEBT_TYPES.map((t) => t.value);
       const validStrategies = PAYMENT_STRATEGIES.map((s) => s.value);
       for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',');
+        const cols = parseCsvLine(lines[i]);
         if (cols.length < 3) continue;
-        const row: any = {};
+        const row: Record<string, string> = {};
         headers.forEach((h, idx) => {
           row[h] = (cols[idx] || '').trim();
         });
@@ -423,7 +516,7 @@ export default function Debts() {
             interest_rate: apr,
             minimum_payment: minPayment,
             amount_due_immediately: parseFloat(row.amount_due_immediately) || 0,
-            due_day_of_month: parseInt(row.due_day_of_month) || null,
+            due_day_of_month: parseInt(row.due_day_of_month, 10) || null,
             payment_strategy: str,
             url: row.url || null,
           });
@@ -432,9 +525,12 @@ export default function Debts() {
         }
       }
       e.target.value = '';
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Unable to import CSV file. Verify column formatting and try again.');
+    } finally {
+      setUploadingCsv(false);
     }
   };
 
@@ -452,48 +548,85 @@ export default function Debts() {
     <div className="fade-in">
       <div className="page-header">
         <h2>Debts & Payoff Strategy</h2>
-        <p>Track debts with interest and calculate the best payoff plan</p>
+        <p>Track liabilities, interest rates, and monthly payoff amortization.</p>
       </div>
 
-      <div
-        className="debt-stats-grid section"
-      >
-        <div className="stat-card stat-red">
-          <div className="stat-label">Total Debt</div>
-          <div className="stat-value">{fmt(totalDebt)}</div>
-        </div>
-        <div className="stat-card stat-amber">
-          <div className="stat-label">Monthly Payments</div>
-          <div className="stat-value">{fmt(totalPayments)}</div>
-        </div>
-        <div className="stat-card" style={{ borderColor: 'var(--accent-green)' }}>
-          <div className="stat-label">Good Debt</div>
-          <div className="stat-value" style={{ color: 'var(--accent-green)' }}>
-            {fmt(goodDebt)}
+      {error && (
+        <div className="error-state-banner section" role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertTriangle size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>{error}</span>
           </div>
-          <div className="stat-sub">
-            {totalDebt > 0 ? ((goodDebt / totalDebt) * 100).toFixed(0) : 0}% of total
-          </div>
-        </div>
-        <div className="stat-card" style={{ borderColor: 'var(--accent-red)' }}>
-          <div className="stat-label">Bad Debt</div>
-          <div className="stat-value" style={{ color: 'var(--accent-red)' }}>
-            {fmt(badDebt)}
-          </div>
-          <div className="stat-sub">
-            {totalDebt > 0 ? ((badDebt / totalDebt) * 100).toFixed(0) : 0}% of total
-          </div>
-        </div>
-        {totalDueNow > 0 && (
-          <div
-            className="stat-card"
-            style={{ borderColor: '#f43f5e', background: 'rgba(244,63,94,0.08)' }}
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            onClick={() => {
+              setLoading(true);
+              load();
+            }}
           >
-            <div className="stat-label" style={{ display: 'flex', alignItems: 'center' }}>
-              <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-              Due Immediately
+            Retry
+          </button>
+        </div>
+      )}
+
+      <div className="debt-stats-grid section">
+        <div className="stat-card">
+          <div className="stat-label">Total Debt</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 120, marginTop: 6 }} />
+          ) : (
+            <div className="stat-value tabular-nums">{fmt(totalDebt)}</div>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Monthly Payments</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 110, marginTop: 6 }} />
+          ) : (
+            <div className="stat-value tabular-nums">{fmt(totalPayments)}</div>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Good Debt</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 110, marginTop: 6 }} />
+          ) : (
+            <>
+              <div className="stat-value tabular-nums" style={{ color: 'var(--as-status-success)' }}>
+                {fmt(goodDebt)}
+              </div>
+              <div className="stat-sub tabular-nums" style={{ color: 'var(--as-text-secondary)' }}>
+                {totalDebt > 0 ? ((goodDebt / totalDebt) * 100).toFixed(0) : 0}% of total
+              </div>
+            </>
+          )}
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Bad Debt</div>
+          {loading ? (
+            <div className="skeleton" style={{ height: 28, width: 110, marginTop: 6 }} />
+          ) : (
+            <>
+              <div className="stat-value tabular-nums" style={{ color: 'var(--as-status-error)' }}>
+                {fmt(badDebt)}
+              </div>
+              <div className="stat-sub tabular-nums" style={{ color: 'var(--as-text-secondary)' }}>
+                {totalDebt > 0 ? ((badDebt / totalDebt) * 100).toFixed(0) : 0}% of total
+              </div>
+            </>
+          )}
+        </div>
+        {!loading && totalDueNow > 0 && (
+          <div className="stat-card">
+            <div
+              className="stat-label"
+              style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--as-status-error)' }}
+            >
+              <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Amount Due Now
             </div>
-            <div className="stat-value" style={{ color: '#f43f5e' }}>
+            <div className="stat-value tabular-nums" style={{ color: 'var(--as-status-error)' }}>
               {fmt(totalDueNow)}
             </div>
           </div>
@@ -503,49 +636,62 @@ export default function Debts() {
       {/* Debt List */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center' }}>
-            <CreditCard size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CreditCard
+              size={16}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-text-secondary)' }}
+            />
             All Debts
           </h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             <button
+              type="button"
               className="btn btn-secondary btn-small"
               onClick={downloadTemplate}
               title="Download CSV template"
-              aria-label="Download CSV template"
-              style={{ display: 'flex', alignItems: 'center' }}
             >
-              <Download size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+              <Download size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Template
             </button>
             <button
+              type="button"
               className="btn btn-secondary btn-small"
               onClick={downloadExport}
               disabled={debts.length === 0}
               title="Export debts to CSV"
-              aria-label="Export debts to CSV"
-              style={{ display: 'flex', alignItems: 'center' }}
             >
-              <Upload size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+              <Upload size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Export
             </button>
-            <label
+            <input
+              ref={csvInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleFileUpload}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Upload debts CSV file"
+            />
+            <button
+              type="button"
               className="btn btn-secondary btn-small"
-              style={{ cursor: 'pointer', margin: 0, display: 'flex', alignItems: 'center' }}
+              onClick={() => csvInputRef.current?.click()}
+              disabled={uploadingCsv}
               title="Upload CSV file"
             >
-              <FileUp size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-              Upload
-              <input type="file" accept=".csv" onChange={handleFileUpload} style={{ display: 'none' }} />
-            </label>
+              <FileUp size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              {uploadingCsv ? 'Uploading...' : 'Upload'}
+            </button>
             <button
+              type="button"
               className="btn btn-secondary btn-small"
               onClick={() => setShowBonusModal(true)}
               disabled={debts.length === 0}
-              aria-label="Plan Bonus"
-              style={{ display: 'flex', alignItems: 'center' }}
             >
-              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Plan Bonus
             </button>
             <TableSearch
@@ -555,429 +701,502 @@ export default function Debts() {
               setIsOpen={allDebtsTable.setSearchOpen}
             />
             <button
+              type="button"
               className="btn btn-primary"
               onClick={() => setShowModal(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              aria-label="Add Debt"
             >
-              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Add Debt
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Add Debt
             </button>
           </div>
         </div>
-        {debts.length === 0 ? (
+        {loading ? (
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '8px 0' }}
+            aria-busy="true"
+            aria-label="Loading debts"
+          >
+            <div className="skeleton" style={{ height: 38, width: '100%' }} />
+            <div className="skeleton" style={{ height: 48, width: '100%' }} />
+            <div className="skeleton" style={{ height: 48, width: '100%' }} />
+            <div className="skeleton" style={{ height: 48, width: '100%' }} />
+          </div>
+        ) : debts.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">
               <CheckCircle2 size={32} strokeWidth={1.5} aria-hidden="true" focusable="false" />
             </div>
-            <h3>No debts.</h3>
-            <p>Zero active debt liabilities recorded.</p>
+            <h3>No debts recorded</h3>
+            <p>Add credit cards, loans, or mortgages to compare Snowball and Avalanche payoff plans.</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              style={{ marginTop: 12 }}
+            >
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              Add Debt
+            </button>
+          </div>
+        ) : allDebtsTable.data.length === 0 ? (
+          <div className="empty-state">
+            <h3>No matching debts</h3>
+            <p>No debts match &ldquo;{allDebtsTable.searchQuery}&rdquo;.</p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-small"
+              onClick={() => allDebtsTable.setSearchQuery('')}
+              style={{ marginTop: 12 }}
+            >
+              Clear Search
+            </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Name"
-                  sortKey="name"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                />
-                <th>Link</th>
-                <TableHeader
-                  label="Type"
-                  sortKey="debt_type"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                />
-                <TableHeader
-                  label="Quality"
-                  sortKey="debt_quality"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                />
-                <TableHeader
-                  label="Balance"
-                  sortKey="balance"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="APR"
-                  sortKey="interest_rate"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Min Payment"
-                  sortKey="minimum_payment"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Due Now"
-                  sortKey="amount_due_immediately"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Monthly Interest"
-                  sortKey="monthly_interest"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="This Month Strategy"
-                  sortKey="payment_strategy"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                />
-                <TableHeader
-                  label="Calculated Payment"
-                  sortKey="calculated_payment"
-                  activeKey={allDebtsTable.sortKey}
-                  activeDirection={allDebtsTable.sortDirection}
-                  onClick={allDebtsTable.requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <th style={{ width: 140 }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {allDebtsTable.data.map((d) => {
-                const qualityInfo = QUALITY_CONFIG[d.debt_quality] || QUALITY_CONFIG.neutral;
-                return (
-                  <tr key={d.id}>
-                    <td style={{ fontWeight: 600 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {d.name}
-                        {d.url && (
-                          <a
-                            href={d.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
+          <div className="scroll-table-wrapper">
+            <div className="scroll-table-inner">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <TableHeader
+                      label="Name"
+                      sortKey="name"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                    />
+                    <th scope="col">Link</th>
+                    <TableHeader
+                      label="Type"
+                      sortKey="debt_type"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Quality"
+                      sortKey="debt_quality"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Balance"
+                      sortKey="balance"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="APR"
+                      sortKey="interest_rate"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="Min Payment"
+                      sortKey="minimum_payment"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="Amount Due Now"
+                      sortKey="amount_due_immediately"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="Monthly Interest"
+                      sortKey="monthly_interest"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <TableHeader
+                      label="This Month Strategy"
+                      sortKey="payment_strategy"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                    />
+                    <TableHeader
+                      label="Calculated Payment"
+                      sortKey="calculated_payment"
+                      activeKey={allDebtsTable.sortKey}
+                      activeDirection={allDebtsTable.sortDirection}
+                      onClick={allDebtsTable.requestSort}
+                      style={{ textAlign: 'right' }}
+                    />
+                    <th scope="col" style={{ width: 96 }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allDebtsTable.data.map((d) => {
+                    const qualityInfo = QUALITY_CONFIG[d.debt_quality] || QUALITY_CONFIG.neutral;
+                    return (
+                      <tr key={d.id}>
+                        <td style={{ fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>{d.name}</span>
+                            {d.url && (
+                              <a
+                                href={d.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="icon-action-btn"
+                                style={{ textDecoration: 'none' }}
+                                title="Visit payment site"
+                                aria-label={`Visit payment site for ${d.name}`}
+                              >
+                                <ExternalLink
+                                  size={14}
+                                  strokeWidth={2.0}
+                                  aria-hidden="true"
+                                  focusable="false"
+                                />
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-small"
+                            onClick={() => openLinkModal(d)}
+                            title={d.url ? 'Edit website link' : 'Add website link'}
+                            aria-label={
+                              d.url
+                                ? `Edit website link for ${d.name}`
+                                : `Add website link for ${d.name}`
+                            }
+                          >
+                            <LinkIcon
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                              style={{
+                                color: d.url ? 'var(--as-status-info)' : 'var(--as-text-secondary)',
+                              }}
+                            />
+                            {d.url ? 'Edit' : 'Add'}
+                          </button>
+                        </td>
+                        <td>
+                          <select
+                            value={d.debt_type}
+                            aria-label={`Debt type for ${d.name}`}
+                            className="inline-table-select"
+                            onChange={async (e) => {
+                              await updateDebtItem(d.id, { debt_type: e.target.value });
+                            }}
+                          >
+                            {DEBT_TYPES.map((t) => (
+                              <option key={t.value} value={t.value}>
+                                {t.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          <span
                             style={{
-                              color: 'var(--accent)',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              textDecoration: 'none',
+                              gap: 4,
+                              padding: '3px 10px',
+                              borderRadius: 'var(--as-radius-pill)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              color: qualityInfo.color,
+                              background: qualityInfo.bg,
+                              letterSpacing: '0.02em',
                             }}
-                            title="Visit site"
-                            aria-label={`Visit site for ${d.name}`}
                           >
-                            <ExternalLink size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button
-                        className="btn btn-secondary btn-small"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          padding: '4px 8px',
-                          borderRadius: 6,
-                          background: d.url ? 'var(--as-status-warning-bg)' : 'var(--as-bg-surface)',
-                          color: d.url ? 'var(--accent)' : 'var(--text-dim)',
-                          border: '1px solid var(--border-color)',
-                          cursor: 'pointer',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                        }}
-                        onClick={() => openLinkModal(d)}
-                        title={d.url ? 'Edit website link' : 'Add website link'}
-                        aria-label={d.url ? `Edit website link for ${d.name}` : `Add website link for ${d.name}`}
-                      >
-                        <LinkIcon size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />
-                        {d.url ? 'Edit' : 'Add'}
-                      </button>
-                    </td>
-                    <td>
-                      <select
-                        value={d.debt_type}
-                        onChange={async (e) => {
-                          await updateDebtItem(d.id, { debt_type: e.target.value });
-                        }}
-                        style={{
-                          background: 'var(--bg-secondary)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 6,
-                          padding: '4px 8px',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {DEBT_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '3px 10px',
-                          borderRadius: 20,
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: qualityInfo.color,
-                          background: qualityInfo.bg,
-                          letterSpacing: '0.02em',
-                        }}
-                      >
-                        {d.debt_quality === 'good' ? (
-                          <CheckCircle2 size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                        ) : d.debt_quality === 'bad' ? (
-                          <XCircle size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                        ) : (
-                          <AlertTriangle size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                        )}
-                        {qualityInfo.label}
-                      </span>
-                    </td>
-                    <td className="amount">
-                      <InlineEdit
-                        value={d.balance}
-                        onSave={async (v) => {
-                          await updateDebtItem(d.id, { balance: Number(v) });
-                        }}
-                      />
-                    </td>
-                    <td>
-                      <InlineEdit
-                        value={d.interest_rate}
-                        format="percent"
-                        onSave={async (v) => {
-                          await updateDebtItem(d.id, { interest_rate: Number(v) });
-                        }}
-                      />
-                    </td>
-                    <td className="amount">
-                      <InlineEdit
-                        value={d.minimum_payment}
-                        onSave={async (v) => {
-                          await updateDebtItem(d.id, { minimum_payment: Number(v) });
-                        }}
-                      />
-                    </td>
-                    <td
-                      className="amount"
-                      style={{
-                        color: d.amount_due_immediately > 0 ? '#f43f5e' : 'var(--text-dim)',
-                        fontWeight: d.amount_due_immediately > 0 ? 700 : 400,
-                      }}
-                    >
-                      <InlineEdit
-                        value={d.amount_due_immediately || null}
-                        onSave={async (v) => {
-                          await updateDebtItem(d.id, {
-                            amount_due_immediately: Number(v) || 0,
-                          });
-                        }}
-                      />
-                    </td>
-                    <td className="amount" style={{ color: 'var(--accent-amber)' }}>
-                      {fmt((d.balance * d.interest_rate) / 100 / 12)}
-                    </td>
-                    <td>
-                      <select
-                        value={d.payment_strategy || 'minimum'}
-                        onChange={async (e) => {
-                          await updateDebtItem(d.id, { payment_strategy: e.target.value });
-                        }}
-                        title="This Month Payment Strategy"
-                        style={{
-                          background: 'var(--bg-secondary)',
-                          color: (() => {
-                            const s = PAYMENT_STRATEGIES.find(
-                              (p) => p.value === (d.payment_strategy || 'minimum')
-                            );
-                            return s ? s.color : 'var(--text-primary)';
-                          })(),
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 6,
-                          padding: '4px 8px',
-                          fontSize: '0.8rem',
-                          cursor: 'pointer',
-                          fontWeight: 600,
-                          minWidth: 130,
-                        }}
-                      >
-                        {PAYMENT_STRATEGIES.map((p) => (
-                          <option key={p.value} value={p.value}>
-                            {p.label}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="amount">
-                      <span
-                        style={{
-                          fontWeight: 700,
-                          color: (() => {
-                            const s = d.payment_strategy || 'minimum';
-                            if (s === 'payoff_plan') return 'var(--accent-blue)';
-                            if (s === 'due_now') return '#f43f5e';
-                            return 'var(--accent-amber)';
-                          })(),
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                        }}
-                        title={`Strategy: ${d.payment_strategy || 'minimum'}`}
-                      >
-                        {fmt(d.calculated_payment || 0)}
-                        {d.payment_strategy === 'payoff_plan' && !committedPlan && (
-                          <AlertTriangle
-                            size={14}
-                            strokeWidth={2.0}
-                            aria-hidden="true"
-                            focusable="false"
-                            style={{ color: 'var(--text-muted)', marginLeft: 4 }}
+                            {d.debt_quality === 'good' ? (
+                              <CheckCircle2
+                                size={12}
+                                strokeWidth={2.0}
+                                aria-hidden="true"
+                                focusable="false"
+                              />
+                            ) : d.debt_quality === 'bad' ? (
+                              <XCircle
+                                size={12}
+                                strokeWidth={2.0}
+                                aria-hidden="true"
+                                focusable="false"
+                              />
+                            ) : (
+                              <AlertTriangle
+                                size={12}
+                                strokeWidth={2.0}
+                                aria-hidden="true"
+                                focusable="false"
+                              />
+                            )}
+                            {qualityInfo.label}
+                          </span>
+                        </td>
+                        <td className="amount">
+                          <InlineEdit
+                            value={d.balance}
+                            onSave={async (v) => {
+                              await updateDebtItem(d.id, { balance: Number(v) });
+                            }}
                           />
-                        )}
-                      </span>
-                    </td>
-                    <td>
-                      <DeleteButton onDelete={() => deleteDebtItem(d.id)} ariaLabel={`Delete ${d.name}`} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                        </td>
+                        <td className="amount">
+                          <InlineEdit
+                            value={d.interest_rate}
+                            format="percent"
+                            onSave={async (v) => {
+                              await updateDebtItem(d.id, { interest_rate: Number(v) });
+                            }}
+                          />
+                        </td>
+                        <td className="amount">
+                          <InlineEdit
+                            value={d.minimum_payment}
+                            onSave={async (v) => {
+                              await updateDebtItem(d.id, { minimum_payment: Number(v) });
+                            }}
+                          />
+                        </td>
+                        <td
+                          className="amount"
+                          style={{
+                            color:
+                              Number(d.amount_due_immediately) > 0
+                                ? 'var(--as-status-error)'
+                                : 'var(--as-text-secondary)',
+                            fontWeight: Number(d.amount_due_immediately) > 0 ? 700 : 400,
+                          }}
+                        >
+                          <InlineEdit
+                            value={d.amount_due_immediately || null}
+                            onSave={async (v) => {
+                              await updateDebtItem(d.id, {
+                                amount_due_immediately: Number(v) || 0,
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="amount" style={{ color: 'var(--as-status-warning)' }}>
+                          {fmt((Number(d.balance) * Number(d.interest_rate)) / 100 / 12)}
+                        </td>
+                        <td>
+                          <select
+                            value={d.payment_strategy || 'minimum'}
+                            aria-label={`Monthly payment strategy for ${d.name}`}
+                            className="inline-table-select"
+                            onChange={async (e) => {
+                              await updateDebtItem(d.id, { payment_strategy: e.target.value });
+                            }}
+                            style={{
+                              color: (() => {
+                                const s = PAYMENT_STRATEGIES.find(
+                                  (p) => p.value === (d.payment_strategy || 'minimum')
+                                );
+                                return s ? s.color : 'var(--as-text-primary)';
+                              })(),
+                              fontWeight: 600,
+                              minWidth: 132,
+                            }}
+                          >
+                            {PAYMENT_STRATEGIES.map((p) => (
+                              <option key={p.value} value={p.value}>
+                                {p.label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="amount">
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color: (() => {
+                                const s = d.payment_strategy || 'minimum';
+                                if (s === 'payoff_plan') return 'var(--as-status-info)';
+                                if (s === 'due_now') return 'var(--as-status-error)';
+                                return 'var(--as-status-warning)';
+                              })(),
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                            title={
+                              d.payment_strategy === 'payoff_plan' && !committedPlan
+                                ? 'Commit a payoff plan below to lock in target payments'
+                                : `Strategy: ${d.payment_strategy || 'minimum'}`
+                            }
+                          >
+                            {fmt(d.calculated_payment || 0)}
+                            {d.payment_strategy === 'payoff_plan' && !committedPlan && (
+                              <AlertTriangle
+                                size={14}
+                                strokeWidth={2.0}
+                                aria-hidden="true"
+                                focusable="false"
+                                style={{ color: 'var(--as-text-secondary)', marginLeft: 4 }}
+                              />
+                            )}
+                          </span>
+                        </td>
+                        <td>
+                          <DeleteButton
+                            onDelete={() => deleteDebtItem(d.id)}
+                            ariaLabel={`Delete ${d.name}`}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Payoff Plan Section */}
-      {payoff && (
+      {payoff && !loading && (
         <div className="card section">
           <div className="card-header">
-            <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <TrendingUp size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <TrendingUp
+                size={16}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-text-secondary)' }}
+              />
               Payoff Plan
             </h3>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
               {committedPlan ? (
                 <button
-                  className="btn btn-small"
+                  type="button"
+                  className="btn btn-secondary btn-small"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    background: 'rgba(34,197,94,0.15)',
-                    color: 'var(--accent-green)',
-                    border: '1px solid rgba(34,197,94,0.3)',
+                    color: 'var(--as-status-success)',
+                    borderColor: 'color-mix(in srgb, var(--as-status-success) 35%, transparent)',
                   }}
+                  disabled={committing}
                   onClick={async () => {
-                    await axios.delete('/api/debts/payoff/committed');
-                    setCommittedPlan(null);
+                    setCommitting(true);
+                    setError(null);
+                    try {
+                      await axios.delete('/api/debts/payoff/committed');
+                      setCommittedPlan(null);
+                      await load();
+                    } catch (e) {
+                      console.error(e);
+                      setError('Unable to unlock the committed payoff plan. Please try again.');
+                    } finally {
+                      setCommitting(false);
+                    }
                   }}
-                  aria-label="Unlock Plan"
                 >
-                  <Unlock size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-                  Unlock Plan
+                  <Unlock size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  {committing ? 'Unlocking...' : 'Unlock Plan'}
                 </button>
               ) : (
                 <button
-                  className="btn btn-small"
+                  type="button"
+                  className="btn btn-secondary btn-small"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    background: 'rgba(74,144,217,0.15)',
-                    color: 'var(--accent-blue)',
-                    border: '1px solid rgba(74,144,217,0.3)',
+                    color: 'var(--as-status-info)',
+                    borderColor: 'color-mix(in srgb, var(--as-status-info) 35%, transparent)',
                   }}
                   disabled={committing}
-                  aria-label="Commit This Plan"
                   onClick={async () => {
                     setCommitting(true);
+                    setError(null);
                     try {
                       const plan = await axios
                         .post('/api/debts/payoff/commit', {
                           strategy,
                           extra_payment: 0,
-                          target_months: targetMonths ? parseInt(targetMonths) : null,
+                          target_months: targetMonths ? parseInt(targetMonths, 10) : null,
                           excluded_debt_ids: excludedDebtIds.length ? excludedDebtIds : null,
                         })
                         .then((r) => r.data);
                       setCommittedPlan(plan);
                       localStorage.setItem('planCommittedAt', Date.now().toString());
-                      load();
+                      await load();
                     } catch (e) {
                       console.error(e);
+                      setError('Unable to commit payoff plan. Please try again.');
+                    } finally {
+                      setCommitting(false);
                     }
-                    setCommitting(false);
                   }}
                 >
-                  <CheckCircle2 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-                  Commit This Plan
+                  <CheckCircle2 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  {committing ? 'Committing...' : 'Commit This Plan'}
                 </button>
               )}
               <button
+                type="button"
                 className="btn btn-secondary btn-small"
                 onClick={() => setShowPayoffConfig(true)}
-                style={{ display: 'flex', alignItems: 'center' }}
-                aria-label="Configure Plan"
               >
-                <Settings size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+                <Settings size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                 Configure
               </button>
-              <button
-                className={`btn btn-small ${strategy === 'snowball' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setStrategy('snowball')}
-                style={{ display: 'flex', alignItems: 'center' }}
-                aria-label="Snowball strategy"
-              >
-                <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-                Snowball
-              </button>
-              <button
-                className={`btn btn-small ${strategy === 'avalanche' ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setStrategy('avalanche')}
-                style={{ display: 'flex', alignItems: 'center' }}
-                aria-label="Avalanche strategy"
-              >
-                <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-                Avalanche
-              </button>
+              <div className="seg-tabs" role="group" aria-label="Payoff strategy">
+                <button
+                  type="button"
+                  className={`seg-tab${strategy === 'snowball' ? ' active' : ''}`}
+                  aria-pressed={strategy === 'snowball'}
+                  onClick={() => setStrategy('snowball')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                >
+                  <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  Snowball
+                </button>
+                <button
+                  type="button"
+                  className={`seg-tab${strategy === 'avalanche' ? ' active' : ''}`}
+                  aria-pressed={strategy === 'avalanche'}
+                  onClick={() => setStrategy('avalanche')}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                >
+                  <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  Avalanche
+                </button>
+              </div>
             </div>
           </div>
+
           {excludedDebtIds.length > 0 && (
             <div
               style={{
                 padding: '8px 14px',
-                background: 'rgba(234,179,8,0.08)',
-                borderRadius: 8,
+                background: 'color-mix(in srgb, var(--as-status-warning) 10%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--as-status-warning) 30%, transparent)',
+                borderRadius: 'var(--as-radius-md)',
                 marginBottom: 16,
-                fontSize: '0.8rem',
-                color: 'var(--accent-amber)',
+                fontSize: '0.8125rem',
+                color: 'var(--as-status-warning)',
                 display: 'flex',
                 alignItems: 'center',
+                gap: 6,
               }}
             >
-              <AlertTriangle size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
-              {excludedDebtIds.length} debt{excludedDebtIds.length > 1 ? 's' : ''} excluded from this plan
+              <AlertTriangle size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              {excludedDebtIds.length} debt{excludedDebtIds.length > 1 ? 's' : ''} excluded from
+              this plan
             </div>
           )}
 
@@ -988,26 +1207,31 @@ export default function Debts() {
               flexWrap: 'wrap',
               alignItems: 'center',
               gap: 12,
-              marginBottom: 20,
+              marginBottom: 16,
               padding: '12px 16px',
-              background: 'var(--bg-secondary)',
-              borderRadius: 10,
-              border: '1px solid var(--border-color)',
+              background: 'var(--as-bg-base)',
+              borderRadius: 'var(--as-radius-md)',
+              border: '1px solid var(--as-border-subtle)',
             }}
           >
-            <span
+            <label
+              htmlFor="target-payoff-months"
               style={{
                 fontSize: '0.85rem',
-                color: 'var(--text-secondary)',
+                color: 'var(--as-text-secondary)',
                 whiteSpace: 'nowrap',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
+                gap: 6,
+                margin: 0,
               }}
             >
-              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+              <Target size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Target payoff in
-            </span>
+            </label>
             <input
+              id="target-payoff-months"
+              aria-label="Target payoff months"
               type="number"
               min="1"
               max="600"
@@ -1015,114 +1239,162 @@ export default function Debts() {
               onChange={(e) => setTargetMonths(e.target.value)}
               placeholder={String(payoff.total_months || 12)}
               style={{
-                width: 70,
+                width: 84,
+                minHeight: 44,
                 textAlign: 'center',
                 padding: '6px 8px',
-                background: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: 6,
-                color: 'var(--text-primary)',
-                fontSize: '0.95rem',
+                background: 'var(--as-bg-surface)',
+                border: '1px solid var(--as-border-subtle)',
+                borderRadius: 'var(--as-radius-sm)',
+                color: 'var(--as-text-primary)',
+                fontFamily: 'var(--as-font-mono)',
+                fontVariantNumeric: 'tabular-nums',
+                fontSize: '1rem',
                 fontWeight: 600,
               }}
             />
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>months</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--as-text-secondary)' }}>months</span>
             {targetMonths && (
               <button
+                type="button"
+                className="btn btn-secondary btn-small"
                 onClick={() => setTargetMonths('')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  fontSize: '0.8rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
                 aria-label="Clear target payoff months"
               >
-                <X size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" /> Clear
+                <X size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                Clear
               </button>
             )}
-            {targetMonths && (() => {
-              const targetDate = new Date();
-              targetDate.setMonth(targetDate.getMonth() + parseInt(targetMonths));
-              return (
-                <span
-                  style={{
-                    marginLeft: 'auto',
-                    fontSize: '0.8rem',
-                    color: 'var(--accent-green)',
-                    fontWeight: 500,
-                  }}
-                >
-                  Debt-free by{' '}
-                  {targetDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-                </span>
-              );
-            })()}
+            {targetMonths &&
+              (() => {
+                const targetDate = new Date();
+                targetDate.setMonth(targetDate.getMonth() + parseInt(targetMonths, 10));
+                return (
+                  <span
+                    className="tabular-nums"
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: '0.8125rem',
+                      color: 'var(--as-status-success)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    Debt-free by{' '}
+                    {targetDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </span>
+                );
+              })()}
           </div>
 
+          {/* Flattened Recessed Summary Strip (no nested cards inside card) */}
           <div
-            className={targetMonths ? 'card-grid-4' : 'card-grid-3'}
             style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
               gap: 16,
-              marginBottom: 20,
+              padding: '16px 20px',
+              marginBottom: 24,
+              background: 'var(--as-bg-base)',
+              border: '1px solid var(--as-border-subtle)',
+              borderRadius: 'var(--as-radius-md)',
             }}
           >
-            <div className="stat-card" style={{ padding: 14 }}>
+            <div>
               <div className="stat-label">Strategy</div>
               <div
-                className="stat-value"
                 style={{
-                  fontSize: '1.2rem',
-                  color: 'var(--accent-blue)',
+                  fontSize: '1.15rem',
+                  fontWeight: 700,
+                  color: 'var(--as-status-info)',
                   display: 'flex',
                   alignItems: 'center',
+                  gap: 6,
+                  marginTop: 4,
                 }}
               >
                 {payoff.strategy === 'snowball' ? (
                   <>
-                    <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+                    <Snowflake size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                     Snowball
                   </>
                 ) : (
                   <>
-                    <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+                    <Mountain size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                     Avalanche
                   </>
                 )}
               </div>
-              <div className="stat-sub">
+              <div className="stat-sub" style={{ color: 'var(--as-text-secondary)' }}>
                 {payoff.strategy === 'snowball' ? 'Smallest balance first' : 'Highest APR first'}
               </div>
             </div>
-            <div className="stat-card" style={{ padding: 14 }}>
+            <div>
               <div className="stat-label">Months to Debt-Free</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--accent-green)' }}>
+              <div
+                className="tabular-nums"
+                style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--as-font-mono)',
+                  color: 'var(--as-status-success)',
+                  marginTop: 4,
+                }}
+              >
                 {payoff.total_months}
               </div>
-              <div className="stat-sub">{(payoff.total_months / 12).toFixed(1)} years</div>
+              <div className="stat-sub tabular-nums" style={{ color: 'var(--as-text-secondary)' }}>
+                {(payoff.total_months / 12).toFixed(1)} years
+              </div>
             </div>
-            <div className="stat-card" style={{ padding: 14 }}>
+            <div>
               <div className="stat-label">Total Interest Paid</div>
-              <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--accent-red)' }}>
+              <div
+                className="tabular-nums"
+                style={{
+                  fontSize: '1.35rem',
+                  fontWeight: 700,
+                  fontFamily: 'var(--as-font-mono)',
+                  color: 'var(--as-status-error)',
+                  marginTop: 4,
+                }}
+              >
                 {fmt(payoff.total_interest_paid)}
               </div>
             </div>
             {targetMonths && (
-              <div className="stat-card" style={{ padding: 14, borderColor: 'var(--accent-blue)' }}>
+              <div>
                 <div className="stat-label">Required Monthly Total</div>
-                <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--accent-blue)' }}>
-                  {fmt(payoff.debts_order.reduce((s, d) => s + d.required_payment, 0))}
+                <div
+                  className="tabular-nums"
+                  style={{
+                    fontSize: '1.35rem',
+                    fontWeight: 700,
+                    fontFamily: 'var(--as-font-mono)',
+                    color: 'var(--as-status-info)',
+                    marginTop: 4,
+                  }}
+                >
+                  {fmt(payoff.debts_order.reduce((s, d) => s + Number(d.required_payment), 0))}
                 </div>
-                <div className="stat-sub">vs {fmt(totalPayments)} minimum</div>
+                <div
+                  className="stat-sub tabular-nums"
+                  style={{ color: 'var(--as-text-secondary)' }}
+                >
+                  vs {fmt(totalPayments)} minimum
+                </div>
               </div>
             )}
           </div>
 
-          <h4 style={{ marginBottom: 12, color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>
+          <h4
+            style={{
+              marginBottom: 12,
+              color: 'var(--as-text-secondary)',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              letterSpacing: '0.04em',
+            }}
+          >
             PAYOFF TIMELINE
           </h4>
           {(() => {
@@ -1154,9 +1426,9 @@ export default function Debts() {
             const debtStates = payoff.debts_order.map((d) => ({
               id: d.debt_id,
               name: d.debt_name,
-              balance: d.starting_balance,
-              rate: d.interest_rate / 100 / 12,
-              minPay: d.required_payment,
+              balance: Number(d.starting_balance),
+              rate: Number(d.interest_rate) / 100 / 12,
+              minPay: Number(d.required_payment),
             }));
             const totalBudget = debtStates.reduce((s, d) => s + d.minPay, 0);
             const schedule: any[] = [];
@@ -1215,13 +1487,21 @@ export default function Debts() {
 
             return (
               <>
-                <ResponsiveContainer width="100%" height={Math.max(160, payoff.debts_order.length * 50)}>
+                <ResponsiveContainer
+                  width="100%"
+                  height={Math.max(160, payoff.debts_order.length * 50)}
+                >
                   <BarChart data={chartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#22222a" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--as-border-subtle)" />
                     <XAxis
                       type="number"
-                      stroke="#71717a"
-                      fontSize={11}
+                      stroke="var(--as-text-secondary)"
+                      fontSize={12}
+                      tick={{
+                        fill: 'var(--as-text-secondary)',
+                        fontSize: 12,
+                        fontFamily: 'var(--as-font-mono)',
+                      }}
                       ticks={ticks}
                       tickFormatter={formatMonthTick}
                       domain={[0, maxM]}
@@ -1231,48 +1511,77 @@ export default function Debts() {
                       type="category"
                       dataKey="debt_name"
                       width={120}
-                      stroke="#71717a"
+                      stroke="var(--as-text-secondary)"
                       fontSize={12}
+                      tick={{ fill: 'var(--as-text-secondary)', fontSize: 12 }}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: '#18181f',
-                        border: '1px solid #33333f',
-                        borderRadius: 6,
+                        backgroundColor: 'var(--as-bg-overlay)',
+                        border: '1px solid var(--as-border-strong)',
+                        borderRadius: 'var(--as-radius-md)',
+                        color: 'var(--as-text-primary)',
                         fontFamily: 'var(--as-font-mono)',
-                        fontSize: '0.8rem',
+                        fontSize: '0.8125rem',
+                      }}
+                      itemStyle={{ color: 'var(--as-text-primary)' }}
+                      labelStyle={{ color: 'var(--as-text-primary)', fontWeight: 600 }}
+                      cursor={{
+                        fill: 'color-mix(in srgb, var(--as-text-primary) 5%, transparent)',
                       }}
                       formatter={(v, name) =>
-                        name === 'months_to_payoff' ? `${v} months` : fmt(Number(v))
+                        name === 'months_to_payoff' || name === 'Months'
+                          ? `${v} months`
+                          : fmt(Number(v))
                       }
                     />
-                    <Bar dataKey="months_to_payoff" fill="#84cc16" radius={[0, 4, 4, 0]} name="Months" />
+                    <Bar
+                      dataKey="months_to_payoff"
+                      fill="var(--as-accent-primary)"
+                      radius={[0, 4, 4, 0]}
+                      name="Months"
+                    />
                   </BarChart>
                 </ResponsiveContainer>
 
                 <h4
                   style={{
                     marginTop: 24,
-                    marginBottom: 12,
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem',
+                    marginBottom: 8,
+                    color: 'var(--as-text-secondary)',
+                    fontSize: '0.8125rem',
                     fontWeight: 600,
+                    letterSpacing: '0.04em',
                   }}
                 >
                   MONTHLY PAYMENT PLAN
                   <span
                     style={{
                       fontWeight: 400,
-                      fontSize: '0.75rem',
+                      fontSize: '0.78rem',
                       marginLeft: 8,
-                      color: 'var(--text-muted)',
+                      letterSpacing: 'normal',
+                      color: 'var(--as-text-secondary)',
                     }}
                   >
-                    — Pay {fmt(totalBudget)}/mo total • extra goes to{' '}
+                    — Pay {fmt(totalBudget)}/mo total, directing extra toward{' '}
                     {payoff.strategy === 'snowball' ? 'smallest balance' : 'highest APR'} first
                   </span>
                 </h4>
-                <div className="scroll-table-wrapper" style={{ marginTop: 4 }}>
+                {(maxM > 120 || payoff.total_months > 120) && (
+                  <p
+                    style={{
+                      fontSize: '0.8125rem',
+                      color: 'var(--as-text-secondary)',
+                      marginBottom: 12,
+                    }}
+                  >
+                    Showing the first 120 months (10-year horizon) of a {payoff.total_months}
+                    -month payoff schedule. Table totals reflect payments within this 120-month
+                    window.
+                  </p>
+                )}
+                <div className="scroll-table-wrapper" style={{ marginTop: 8 }}>
                   <div className="scroll-table-inner">
                     <table
                       className="data-table"
@@ -1281,14 +1590,15 @@ export default function Debts() {
                       <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                         <tr>
                           <th
+                            scope="col"
                             style={{
                               position: 'sticky',
                               left: 0,
                               top: 0,
                               zIndex: 3,
                               background: 'var(--as-bg-elevated)',
-                              minWidth: 150,
-                              boxShadow: '2px 0 4px rgba(0,0,0,0.2)',
+                              minWidth: 130,
+                              borderRight: '1px solid var(--as-border-subtle)',
                             }}
                           >
                             Debt
@@ -1296,16 +1606,19 @@ export default function Debts() {
                           {schedule.map((row) => (
                             <th
                               key={row.month}
+                              scope="col"
                               style={{
                                 textAlign: 'right',
-                                minWidth: 90,
+                                minWidth: 96,
                                 padding: '8px 12px',
-                                color: row.isCurrent ? 'var(--accent-blue)' : 'var(--text-secondary)',
+                                color: row.isCurrent
+                                  ? 'var(--as-status-info)'
+                                  : 'var(--as-text-secondary)',
                                 background: row.isCurrent
-                                  ? 'rgba(74,144,217,0.1)'
+                                  ? 'color-mix(in srgb, var(--as-status-info) 12%, var(--as-bg-elevated))'
                                   : 'var(--as-bg-elevated)',
                                 borderBottom: row.isCurrent
-                                  ? '2px solid rgba(74,144,217,0.4)'
+                                  ? '1px solid var(--as-border-strong)'
                                   : undefined,
                               }}
                             >
@@ -1313,27 +1626,27 @@ export default function Debts() {
                               {row.isCurrent && (
                                 <div
                                   style={{
-                                    fontSize: '0.6rem',
-                                    fontWeight: 400,
-                                    color: 'var(--accent-blue)',
+                                    fontSize: '0.6875rem',
+                                    fontWeight: 500,
+                                    color: 'var(--as-status-info)',
                                     lineHeight: 1.2,
                                     marginTop: 2,
                                   }}
                                 >
-                                  ← now
+                                  Current
                                 </div>
                               )}
                             </th>
                           ))}
                           <th
+                            scope="col"
                             style={{
                               textAlign: 'right',
                               fontWeight: 700,
-                              minWidth: 90,
-                              position: 'sticky',
-                              right: 0,
+                              minWidth: 108,
+                              color: 'var(--as-text-primary)',
                               background: 'var(--as-bg-elevated)',
-                              boxShadow: '-2px 0 4px rgba(0,0,0,0.2)',
+                              borderLeft: '1px solid var(--as-border-strong)',
                             }}
                           >
                             Total Paid
@@ -1346,7 +1659,8 @@ export default function Debts() {
                             (sum, row) => sum + (row.payments[d.debt_id]?.pay || 0),
                             0
                           );
-                          const rowBg = di % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent';
+                          const stickyRowBg =
+                            di % 2 === 0 ? 'var(--as-bg-elevated)' : 'var(--as-bg-surface)';
                           return (
                             <tr key={d.debt_id}>
                               <td
@@ -1355,12 +1669,11 @@ export default function Debts() {
                                   position: 'sticky',
                                   left: 0,
                                   zIndex: 1,
-                                  background:
-                                    di % 2 === 0 ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-                                  maxWidth: 200,
+                                  background: stickyRowBg,
+                                  maxWidth: 180,
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  boxShadow: '2px 0 4px rgba(0,0,0,0.15)',
+                                  borderRight: '1px solid var(--as-border-subtle)',
                                 }}
                               >
                                 {d.debt_name}
@@ -1373,15 +1686,17 @@ export default function Debts() {
                                       key={row.month}
                                       className="amount"
                                       style={{
-                                        color: 'var(--text-muted)',
-                                        background: row.isCurrent ? 'rgba(74,144,217,0.05)' : rowBg,
+                                        color: 'var(--as-text-secondary)',
+                                        background: row.isCurrent
+                                          ? 'color-mix(in srgb, var(--as-status-info) 6%, transparent)'
+                                          : stickyRowBg,
                                       }}
                                     >
                                       —
                                     </td>
                                   );
                                 }
-                                const isExtra = p.pay > d.required_payment + 0.5;
+                                const isExtra = p.pay > Number(d.required_payment) + 0.5;
                                 const justPaidOff = p.paidOff && p.pay > 0;
                                 return (
                                   <td
@@ -1390,16 +1705,16 @@ export default function Debts() {
                                     style={{
                                       color:
                                         p.paidOff && p.pay === 0
-                                          ? 'var(--text-muted)'
+                                          ? 'var(--as-text-secondary)'
                                           : isExtra
-                                          ? '#4a90d9'
-                                          : 'var(--text-primary)',
+                                          ? 'var(--as-status-info)'
+                                          : 'var(--as-text-primary)',
                                       fontWeight: isExtra ? 700 : 400,
                                       background: justPaidOff
-                                        ? 'rgba(34,197,94,0.12)'
+                                        ? 'color-mix(in srgb, var(--as-status-success) 14%, transparent)'
                                         : row.isCurrent
-                                        ? 'rgba(74,144,217,0.07)'
-                                        : rowBg,
+                                        ? 'color-mix(in srgb, var(--as-status-info) 8%, transparent)'
+                                        : stickyRowBg,
                                     }}
                                   >
                                     {p.pay > 0.01 ? fmt(p.pay) : '—'}
@@ -1410,8 +1725,8 @@ export default function Debts() {
                                         aria-hidden="true"
                                         focusable="false"
                                         style={{
-                                          marginLeft: 3,
-                                          color: 'var(--accent-green)',
+                                          marginLeft: 4,
+                                          color: 'var(--as-status-success)',
                                           display: 'inline-block',
                                           verticalAlign: 'middle',
                                         }}
@@ -1424,12 +1739,9 @@ export default function Debts() {
                                 className="amount"
                                 style={{
                                   fontWeight: 700,
-                                  color: 'var(--text-muted)',
-                                  position: 'sticky',
-                                  right: 0,
-                                  background:
-                                    di % 2 === 0 ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-                                  boxShadow: '-2px 0 4px rgba(0,0,0,0.15)',
+                                  color: 'var(--as-text-primary)',
+                                  background: stickyRowBg,
+                                  borderLeft: '1px solid var(--as-border-strong)',
                                 }}
                               >
                                 {fmt(debtTotal)}
@@ -1437,11 +1749,11 @@ export default function Debts() {
                             </tr>
                           );
                         })}
-                        {/* Total / month row — sticky at bottom */}
+                        {/* Total / month row */}
                         <tr
                           style={{
-                            borderTop: '2px solid var(--border-color)',
-                            background: 'rgba(74,144,217,0.05)',
+                            borderTop: '1px solid var(--as-border-strong)',
+                            background: 'var(--as-bg-elevated)',
                           }}
                         >
                           <td
@@ -1450,8 +1762,8 @@ export default function Debts() {
                               position: 'sticky',
                               left: 0,
                               zIndex: 1,
-                              background: 'var(--bg-secondary)',
-                              boxShadow: '2px 0 4px rgba(0,0,0,0.15)',
+                              background: 'var(--as-bg-elevated)',
+                              borderRight: '1px solid var(--as-border-subtle)',
                             }}
                           >
                             Total / mo
@@ -1462,8 +1774,10 @@ export default function Debts() {
                               className="amount"
                               style={{
                                 fontWeight: 700,
-                                color: 'var(--accent-blue)',
-                                background: row.isCurrent ? 'rgba(74,144,217,0.12)' : 'transparent',
+                                color: 'var(--as-status-info)',
+                                background: row.isCurrent
+                                  ? 'color-mix(in srgb, var(--as-status-info) 12%, var(--as-bg-elevated))'
+                                  : 'var(--as-bg-elevated)',
                               }}
                             >
                               {fmt(row.total)}
@@ -1473,11 +1787,9 @@ export default function Debts() {
                             className="amount"
                             style={{
                               fontWeight: 700,
-                              color: 'var(--accent-blue)',
-                              position: 'sticky',
-                              right: 0,
-                              background: 'var(--bg-secondary)',
-                              boxShadow: '-2px 0 4px rgba(0,0,0,0.15)',
+                              color: 'var(--as-text-primary)',
+                              background: 'var(--as-bg-elevated)',
+                              borderLeft: '1px solid var(--as-border-strong)',
                             }}
                           >
                             {fmt(schedule.reduce((s, r) => s + r.total, 0))}
@@ -1495,15 +1807,32 @@ export default function Debts() {
 
       {/* Bonus Plan Result */}
       {bonusPlan && (
-        <div className="card section" style={{ borderColor: 'var(--accent-green)' }}>
+        <div className="card section">
           <div className="card-header">
-            <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <Target size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Target
+                size={16}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-text-secondary)' }}
+              />
               Bonus Allocation Plan
             </h3>
+            <button
+              type="button"
+              className="icon-action-btn"
+              onClick={() => setBonusPlan(null)}
+              aria-label="Dismiss bonus allocation plan"
+            >
+              <X size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            </button>
           </div>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>
-            {fmt(bonusPlan.total_amount)} bonus using <strong>{bonusPlan.strategy}</strong> strategy:
+          <p style={{ color: 'var(--as-text-secondary)', marginBottom: 16 }}>
+            <span className="tabular-nums" style={{ fontFamily: 'var(--as-font-mono)' }}>
+              {fmt(bonusPlan.total_amount)}
+            </span>{' '}
+            bonus using <strong>{bonusPlan.strategy}</strong> strategy:
           </p>
           {bonusPlan.allocations.map((a, i) => {
             const debt = debts.find((d) => d.id === a.reference_id);
@@ -1515,13 +1844,16 @@ export default function Debts() {
                   justifyContent: 'space-between',
                   alignItems: 'center',
                   padding: '10px 0',
-                  borderBottom: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--as-border-subtle)',
                 }}
               >
                 <span>
                   {i + 1}. {debt?.name || 'Unknown'}
                 </span>
-                <span className="amount" style={{ color: 'var(--accent-green)', fontWeight: 700 }}>
+                <span
+                  className="amount"
+                  style={{ color: 'var(--as-status-success)', fontWeight: 700 }}
+                >
                   {fmt(a.amount)}
                 </span>
               </div>
@@ -1533,12 +1865,19 @@ export default function Debts() {
       {/* Add Debt Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Debt</h3>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-debt-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="add-debt-modal-title">Add Debt</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Name</label>
+                <label htmlFor="debt-name">Name</label>
                 <input
+                  id="debt-name"
                   required
                   value={form.name}
                   onChange={(e) => updateForm({ name: e.target.value })}
@@ -1546,8 +1885,9 @@ export default function Debts() {
                 />
               </div>
               <div className="form-group">
-                <label>Debt Type</label>
+                <label htmlFor="debt-type">Debt Type</label>
                 <select
+                  id="debt-type"
                   required
                   value={form.debt_type}
                   onChange={(e) => updateForm({ debt_type: e.target.value })}
@@ -1561,20 +1901,24 @@ export default function Debts() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Balance</label>
+                  <label htmlFor="debt-balance">Balance</label>
                   <input
+                    id="debt-balance"
                     type="number"
                     step="0.01"
+                    min="0"
                     required
                     value={form.balance}
                     onChange={(e) => updateForm({ balance: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>APR (%)</label>
+                  <label htmlFor="debt-apr">APR (%)</label>
                   <input
+                    id="debt-apr"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={form.interest_rate}
                     onChange={(e) => updateForm({ interest_rate: e.target.value })}
                   />
@@ -1582,26 +1926,35 @@ export default function Debts() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>
-                    Minimum Payment{' '}
+                  <label htmlFor="debt-min-payment">
+                    Minimum Payment
                     {form.debt_type === 'credit_card' && (
-                      <span style={{ color: 'var(--accent-blue)', fontSize: '0.7rem', fontWeight: 400 }}>
-                        {' '}
+                      <span
+                        style={{
+                          color: 'var(--as-status-info)',
+                          fontSize: '0.75rem',
+                          fontWeight: 400,
+                          marginLeft: 6,
+                        }}
+                      >
                         (auto-calculated)
                       </span>
                     )}
                   </label>
                   <input
+                    id="debt-min-payment"
                     type="number"
                     step="0.01"
+                    min="0"
                     required
                     value={form.minimum_payment}
                     onChange={(e) => setForm({ ...form, minimum_payment: e.target.value })}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Due Day</label>
+                  <label htmlFor="debt-due-day">Due Day</label>
                   <input
+                    id="debt-due-day"
                     type="number"
                     min="1"
                     max="31"
@@ -1611,21 +1964,24 @@ export default function Debts() {
                 </div>
               </div>
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center' }}>
-                  <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
-                  Amount Due Immediately
+                <label htmlFor="debt-due-now" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Zap size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  Amount Due Now
                 </label>
                 <input
+                  id="debt-due-now"
                   type="number"
                   step="0.01"
+                  min="0"
                   value={form.amount_due_immediately}
                   onChange={(e) => setForm({ ...form, amount_due_immediately: e.target.value })}
                   placeholder="0.00 — leave blank if none"
                 />
               </div>
               <div className="form-group">
-                <label>Website Direct Link</label>
+                <label htmlFor="debt-url">Website Direct Link</label>
                 <input
+                  id="debt-url"
                   type="url"
                   value={form.url}
                   onChange={(e) => setForm({ ...form, url: e.target.value })}
@@ -1633,11 +1989,12 @@ export default function Debts() {
                 />
               </div>
               <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center' }}>
-                  <BarChart3 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 4 }} />{' '}
+                <label htmlFor="debt-strategy" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <BarChart3 size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                   This Month Payment Strategy
                 </label>
                 <select
+                  id="debt-strategy"
                   value={form.payment_strategy}
                   onChange={(e) => setForm({ ...form, payment_strategy: e.target.value })}
                 >
@@ -1647,9 +2004,9 @@ export default function Debts() {
                     </option>
                   ))}
                 </select>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  Minimum = standard min payment · Due Now = amount_due_immediately · Payoff Plan =
-                  committed plan amount
+                <div style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)', marginTop: 6 }}>
+                  Minimum uses the standard minimum payment, Due Now uses Amount Due Now, and Payoff
+                  Plan uses your committed plan payment.
                 </div>
               </div>
               <div className="modal-actions">
@@ -1657,12 +2014,11 @@ export default function Debts() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowModal(false)}
-                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" aria-label="Add Debt">
-                  Add
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Add Debt'}
                 </button>
               </div>
             </form>
@@ -1673,28 +2029,37 @@ export default function Debts() {
       {/* Bonus Modal */}
       {showBonusModal && (
         <div className="modal-overlay" onClick={() => setShowBonusModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <Target size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bonus-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="bonus-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Target size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Plan Bonus Allocation
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
+            <p style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
               Enter a bonus amount to compute the optimal allocation across active debts.
             </p>
             <form onSubmit={handleBonusSubmit}>
               <div className="form-group">
-                <label>Bonus Amount</label>
+                <label htmlFor="bonus-amount">Bonus Amount</label>
                 <input
+                  id="bonus-amount"
                   type="number"
                   step="0.01"
+                  min="0.01"
                   required
                   value={bonusForm.total_amount}
                   onChange={(e) => setBonusForm({ ...bonusForm, total_amount: e.target.value })}
                 />
               </div>
               <div className="form-group">
-                <label>Strategy</label>
+                <label htmlFor="bonus-strategy">Strategy</label>
                 <select
+                  id="bonus-strategy"
                   value={bonusForm.strategy}
                   onChange={(e) => setBonusForm({ ...bonusForm, strategy: e.target.value })}
                 >
@@ -1703,8 +2068,9 @@ export default function Debts() {
                 </select>
               </div>
               <div className="form-group">
-                <label>Notes</label>
+                <label htmlFor="bonus-notes">Notes</label>
                 <input
+                  id="bonus-notes"
                   value={bonusForm.notes}
                   onChange={(e) => setBonusForm({ ...bonusForm, notes: e.target.value })}
                 />
@@ -1714,12 +2080,11 @@ export default function Debts() {
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowBonusModal(false)}
-                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" aria-label="Generate Plan">
-                  Generate Plan
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Generating...' : 'Generate Plan'}
                 </button>
               </div>
             </form>
@@ -1730,17 +2095,28 @@ export default function Debts() {
       {/* Payoff Configure Modal */}
       {showPayoffConfig && (
         <div className="modal-overlay" onClick={() => setShowPayoffConfig(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payoff-config-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 700 }}
+          >
             <div
               style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                gap: 12,
                 marginBottom: 16,
               }}
             >
-              <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
-                <Settings size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+              <h3
+                id="payoff-config-modal-title"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}
+              >
+                <Settings size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                 Configure Payoff Plan
               </h3>
               <TableSearch
@@ -1750,113 +2126,138 @@ export default function Debts() {
                 setIsOpen={payoffConfigTable.setSearchOpen}
               />
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
-              Toggle which debts to include in the payoff calculation.
+            <p style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
+              Toggle which debts are excluded from the payoff calculation.
             </p>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table" style={{ fontSize: '0.85rem' }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: 40 }}></th>
-                    <TableHeader
-                      label="Name"
-                      sortKey="name"
-                      activeKey={payoffConfigTable.sortKey}
-                      activeDirection={payoffConfigTable.sortDirection}
-                      onClick={payoffConfigTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Type"
-                      sortKey="debt_type"
-                      activeKey={payoffConfigTable.sortKey}
-                      activeDirection={payoffConfigTable.sortDirection}
-                      onClick={payoffConfigTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Balance"
-                      sortKey="balance"
-                      activeKey={payoffConfigTable.sortKey}
-                      activeDirection={payoffConfigTable.sortDirection}
-                      onClick={payoffConfigTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="APR"
-                      sortKey="interest_rate"
-                      activeKey={payoffConfigTable.sortKey}
-                      activeDirection={payoffConfigTable.sortDirection}
-                      onClick={payoffConfigTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Min Payment"
-                      sortKey="minimum_payment"
-                      activeKey={payoffConfigTable.sortKey}
-                      activeDirection={payoffConfigTable.sortDirection}
-                      onClick={payoffConfigTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                  </tr>
-                </thead>
-                <tbody>
-                  {payoffConfigTable.data.map((d) => {
-                    const excluded = excludedDebtIds.includes(d.id);
-                    return (
-                      <tr
-                        key={d.id}
-                        style={{ opacity: excluded ? 0.4 : 1, transition: 'opacity 0.2s' }}
-                      >
-                        <td>
-                          <button
-                            onClick={() => toggleDebtInPlan(d.id)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              cursor: 'pointer',
-                              fontSize: '1.1rem',
-                              padding: 4,
-                              borderRadius: 6,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                            }}
-                            title={excluded ? 'Include in plan' : 'Exclude from plan'}
-                            aria-label={excluded ? `Include ${d.name} in plan` : `Exclude ${d.name} from plan`}
-                          >
-                            {excluded ? (
-                              <EyeOff size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                            ) : (
-                              <Eye size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                            )}
-                          </button>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{d.name}</td>
-                        <td>
-                          <span style={{ fontSize: '0.75rem' }}>{getDebtTypeLabel(d.debt_type)}</span>
-                        </td>
-                        <td className="amount">{fmt(d.balance)}</td>
-                        <td style={{ textAlign: 'right' }}>{d.interest_rate.toFixed(1)}%</td>
-                        <td className="amount">{fmt(d.minimum_payment)}</td>
+            {payoffConfigTable.data.length === 0 ? (
+              <div className="empty-state" style={{ padding: 24 }}>
+                <p>No debts match &ldquo;{payoffConfigTable.searchQuery}&rdquo;.</p>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-small"
+                  onClick={() => payoffConfigTable.setSearchQuery('')}
+                  style={{ marginTop: 8 }}
+                >
+                  Clear Search
+                </button>
+              </div>
+            ) : (
+              <div className="scroll-table-wrapper">
+                <div className="scroll-table-inner">
+                  <table className="data-table" style={{ fontSize: '0.85rem' }}>
+                    <thead>
+                      <tr>
+                        <th scope="col" style={{ width: 48 }}>
+                          <span className="sr-only">Exclude from plan</span>
+                        </th>
+                        <TableHeader
+                          label="Name"
+                          sortKey="name"
+                          activeKey={payoffConfigTable.sortKey}
+                          activeDirection={payoffConfigTable.sortDirection}
+                          onClick={payoffConfigTable.requestSort}
+                        />
+                        <TableHeader
+                          label="Type"
+                          sortKey="debt_type"
+                          activeKey={payoffConfigTable.sortKey}
+                          activeDirection={payoffConfigTable.sortDirection}
+                          onClick={payoffConfigTable.requestSort}
+                        />
+                        <TableHeader
+                          label="Balance"
+                          sortKey="balance"
+                          activeKey={payoffConfigTable.sortKey}
+                          activeDirection={payoffConfigTable.sortDirection}
+                          onClick={payoffConfigTable.requestSort}
+                          style={{ textAlign: 'right' }}
+                        />
+                        <TableHeader
+                          label="APR"
+                          sortKey="interest_rate"
+                          activeKey={payoffConfigTable.sortKey}
+                          activeDirection={payoffConfigTable.sortDirection}
+                          onClick={payoffConfigTable.requestSort}
+                          style={{ textAlign: 'right' }}
+                        />
+                        <TableHeader
+                          label="Min Payment"
+                          sortKey="minimum_payment"
+                          activeKey={payoffConfigTable.sortKey}
+                          activeDirection={payoffConfigTable.sortDirection}
+                          onClick={payoffConfigTable.requestSort}
+                          style={{ textAlign: 'right' }}
+                        />
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {payoffConfigTable.data.map((d) => {
+                        const excluded = excludedDebtIds.includes(d.id);
+                        return (
+                          <tr
+                            key={d.id}
+                            style={{ opacity: excluded ? 0.5 : 1, transition: 'opacity 0.15s' }}
+                          >
+                            <td>
+                              <button
+                                type="button"
+                                className="icon-action-btn"
+                                onClick={() => toggleDebtInPlan(d.id)}
+                                aria-pressed={excluded}
+                                title={excluded ? 'Include in plan' : 'Exclude from plan'}
+                                aria-label={`Exclude ${d.name} from payoff plan`}
+                              >
+                                {excluded ? (
+                                  <EyeOff
+                                    size={16}
+                                    strokeWidth={2.0}
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  />
+                                ) : (
+                                  <Eye
+                                    size={16}
+                                    strokeWidth={2.0}
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  />
+                                )}
+                              </button>
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{d.name}</td>
+                            <td>
+                              <span
+                                style={{ fontSize: '0.78rem', color: 'var(--as-text-secondary)' }}
+                              >
+                                {getDebtTypeLabel(d.debt_type)}
+                              </span>
+                            </td>
+                            <td className="amount">{fmt(d.balance)}</td>
+                            <td className="amount">{Number(d.interest_rate).toFixed(2)}%</td>
+                            <td className="amount">{fmt(d.minimum_payment)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="modal-actions" style={{ marginTop: 16 }}>
               {excludedDebtIds.length > 0 && (
                 <button
+                  type="button"
                   className="btn btn-secondary btn-small"
                   onClick={() => setExcludedDebtIds([])}
                   style={{ marginRight: 'auto' }}
-                  aria-label="Include All debts in plan"
                 >
                   Include All
                 </button>
               )}
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => setShowPayoffConfig(false)}
-                aria-label="Done configuring payoff plan"
               >
                 Done
               </button>
@@ -1874,18 +2275,25 @@ export default function Debts() {
             setLinkModalDebt(null);
           }}
         >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ display: 'flex', alignItems: 'center' }}>
-              <LinkIcon size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />{' '}
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="link-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="link-modal-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <LinkIcon size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Website Link for {linkModalDebt?.name}
             </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
-              Configure a direct shortcut to this credit card or debt&apos;s online payment site.
+            <p style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem', marginBottom: 16 }}>
+              Configure a direct shortcut to this account&apos;s online payment portal.
             </p>
             <form onSubmit={handleLinkSave}>
               <div className="form-group">
-                <label>Website URL</label>
+                <label htmlFor="link-modal-url">Website URL</label>
                 <input
+                  id="link-modal-url"
                   type="url"
                   value={linkModalUrl}
                   onChange={(e) => setLinkModalUrl(e.target.value)}
@@ -1902,12 +2310,11 @@ export default function Debts() {
                     setShowLinkModal(false);
                     setLinkModalDebt(null);
                   }}
-                  aria-label="Cancel"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" aria-label="Save Link">
-                  Save Link
+                <button type="submit" className="btn btn-primary" disabled={submitting}>
+                  {submitting ? 'Saving...' : 'Save Link'}
                 </button>
               </div>
             </form>

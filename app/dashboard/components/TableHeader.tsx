@@ -62,7 +62,14 @@ export default function TableHeader({
   return (
     <th
       scope="col"
+      tabIndex={0}
       onClick={() => onClick(sortKey)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(sortKey);
+        }
+      }}
       className={`sortable ${isSorted ? 'active-sort' : ''} ${className}`}
       style={{ cursor: 'pointer', userSelect: 'none', ...style }}
       aria-sort={isSorted ? (activeDirection === 'asc' ? 'ascending' : 'descending') : 'none'}

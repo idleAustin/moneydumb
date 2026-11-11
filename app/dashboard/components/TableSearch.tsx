@@ -40,6 +40,7 @@ export default function TableSearch({
           className={`table-search-btn ${isOpen ? 'active' : ''}`}
           onClick={() => setIsOpen(!isOpen)}
           aria-label="Search table"
+          aria-expanded={isOpen}
         >
           <Search size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
         </button>

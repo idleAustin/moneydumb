@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Compass, TrendingUp, Sparkles } from 'lucide-react';
+import { Compass, TrendingUp, Sparkles, CheckCircle2 } from 'lucide-react';
 import { fmt, fmtFull, MONTH_NAMES, UnifiedObligation } from '../hooks/useSandboxMonth';
 
 export interface ForwardProjectionOptionsProps {
@@ -61,7 +61,7 @@ export default function ForwardProjectionOptions({
   const [horizonMonths, setHorizonMonths] = useState<3 | 6 | 12>(6);
   const [extraMonthlyBoost, setExtraMonthlyBoost] = useState<number>(0);
 
-  const { simulatedMonths, initialTotalDebt, totalEliminatedDebt, allKnockedOutCards, monthlyFreedCash } = useMemo(() => {
+  const { simulatedMonths, initialTotalDebt, totalEliminatedDebt, allKnockedOutCards, monthlyFreedCash, hasDebts } = useMemo(() => {
     const debtObligations = unifiedObligations
       .filter((o) => o.type === 'debt')
       .map((o) => ({
@@ -84,10 +84,13 @@ export default function ForwardProjectionOptions({
 
     const rows: SimulatedMonthRow[] = [];
     let runningCash = startingBalance;
-    const totalPlannedDebtBudget = Math.max(
-      totalDebtPayments + extraMonthlyBoost,
-      debtObligations.reduce((s, d) => s + d.plannedPayment, 0) + extraMonthlyBoost
-    );
+    const totalPlannedDebtBudget =
+      debtObligations.length === 0
+        ? 0
+        : Math.max(
+            totalDebtPayments + extraMonthlyBoost,
+            debtObligations.reduce((s, d) => s + d.plannedPayment, 0) + extraMonthlyBoost
+          );
 
     const knockedOutSet = new Map<string, { name: string; monthLabel: string; minPayment: number }>();
 
@@ -203,20 +206,24 @@ export default function ForwardProjectionOptions({
       totalEliminatedDebt: eliminated,
       allKnockedOutCards: knockedList,
       monthlyFreedCash: freedSum,
+      hasDebts: debtObligations.length > 0,
     };
   }, [unifiedObligations, startingBalance, totalIncome, totalExpenses, totalDebtPayments, viewMonth, viewYear, horizonMonths, extraMonthlyBoost, strategy]);
 
   const lastMonth = simulatedMonths[simulatedMonths.length - 1];
+  const endCashVal = lastMonth?.endingCash ?? 0;
+  const cashDelta = endCashVal - startingBalance;
+  const cashDeltaFormatted = cashDelta >= 0 ? `+${fmt(cashDelta)}` : fmt(cashDelta);
 
   return (
     <div className="card">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
-            <Compass size={17} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6 }} />
-            Forward Projection & Debt Payoff Horizon
-          </h3>
-          <span style={{ fontSize: '0.72rem', color: 'var(--as-text-muted)' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+            <Compass size={17} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
+            Forward Projection &amp; Debt Payoff Horizon
+          </h2>
+          <span style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)' }}>
             Creditor-by-month knock-out matrix with snowball/avalanche rollover and extra payment simulator
           </span>
         </div>
@@ -224,139 +231,203 @@ export default function ForwardProjectionOptions({
 
       {/* Interactive Controls Bar: Horizon (3M / 6M / 12M) + What-If Debt Accelerator */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 12, padding: '8px 12px', background: 'var(--as-bg-base)', borderRadius: 'var(--as-radius-md)', border: '1px solid var(--as-border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Horizon:</span>
-          {([3, 6, 12] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setHorizonMonths(m)}
-              aria-label={`Project ${m} months forward`}
-              style={{
-                padding: '3px 10px',
-                borderRadius: 'var(--as-radius-pill)',
-                border: horizonMonths === m ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
-                background: horizonMonths === m ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
-                color: horizonMonths === m ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-                fontSize: '0.7rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {m} Months
-            </button>
-          ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Projection horizon">
+          <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Horizon:</span>
+          {([3, 6, 12] as const).map((m) => {
+            const isSelected = horizonMonths === m;
+            return (
+              <button
+                key={m}
+                type="button"
+                className="tm-touch-btn"
+                onClick={() => setHorizonMonths(m)}
+                aria-pressed={isSelected}
+                aria-label={`Project ${m} months forward`}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 'var(--as-radius-pill)',
+                  border: isSelected ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
+                  background: isSelected ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
+                  color: isSelected ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  fontVariantNumeric: 'tabular-nums',
+                  cursor: 'pointer',
+                }}
+              >
+                {m} Months
+              </button>
+            );
+          })}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="What-if extra monthly debt boost">
           <Sparkles size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>What-If Extra Debt Boost:</span>
-          {[0, 250, 500, 1000].map((boost) => (
-            <button
-              key={boost}
-              onClick={() => setExtraMonthlyBoost(boost)}
-              aria-label={`Simulate adding ${fmt(boost)} extra per month toward debt payoff`}
-              style={{
-                padding: '3px 9px',
-                borderRadius: 'var(--as-radius-pill)',
-                border: extraMonthlyBoost === boost ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
-                background: extraMonthlyBoost === boost ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
-                color: extraMonthlyBoost === boost ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-                fontSize: '0.68rem',
-                fontFamily: 'var(--as-font-mono)',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-            >
-              {boost === 0 ? 'Current Plan' : `+${fmt(boost)}/mo`}
-            </button>
-          ))}
+          <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>What-If Extra Debt Boost:</span>
+          {[0, 250, 500, 1000].map((boost) => {
+            const isSelected = extraMonthlyBoost === boost;
+            return (
+              <button
+                key={boost}
+                type="button"
+                className="tm-touch-btn"
+                onClick={() => setExtraMonthlyBoost(boost)}
+                aria-pressed={isSelected}
+                aria-label={`Simulate adding ${fmt(boost)} extra per month toward debt payoff`}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: 'var(--as-radius-pill)',
+                  border: isSelected ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
+                  background: isSelected ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
+                  color: isSelected ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
+                  fontSize: '0.7rem',
+                  fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {boost === 0 ? 'Current Plan' : `+${fmt(boost)}/mo`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* 4-KPI Horizon Telemetry Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))', gap: 8, marginBottom: 14, padding: '10px 12px', background: 'var(--as-bg-elevated)', borderRadius: 'var(--as-radius-md)', border: '1px solid var(--as-border-subtle)' }}>
+      {/* 4-KPI Horizon Telemetry Strip (recessed --as-bg-base) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: 10, marginBottom: 14, padding: '10px 12px', background: 'var(--as-bg-base)', borderRadius: 'var(--as-radius-md)', border: '1px solid var(--as-border-subtle)' }}>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>{lastMonth?.shortLabel} Projected Ending Cash</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--as-accent-primary)', marginTop: 2 }}>
-            {fmtFull(lastMonth?.endingCash || 0)} <span style={{ fontSize: '0.72rem', color: 'var(--as-status-success)' }}>(+{fmt((lastMonth?.endingCash || 0) - startingBalance)})</span>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>{lastMonth?.shortLabel} Projected Ending Cash</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.95rem', fontWeight: 700, color: endCashVal >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)', marginTop: 2 }}>
+            {fmtFull(endCashVal)}{' '}
+            <span style={{ fontSize: '0.72rem', color: cashDelta >= 0 ? 'var(--as-status-success)' : 'var(--as-status-error)' }}>
+              ({cashDeltaFormatted})
+            </span>
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Remaining Debt in {horizonMonths}M</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--as-status-warning)', marginTop: 2 }}>
-            {fmtFull(lastMonth?.remainingDebt || 0)} <span style={{ fontSize: '0.72rem', color: 'var(--as-status-success)' }}>(−{fmt(totalEliminatedDebt)} paid down)</span>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Remaining Debt in {horizonMonths}M</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.95rem', fontWeight: 700, color: (lastMonth?.remainingDebt ?? 0) > 0 ? 'var(--as-status-warning)' : 'var(--as-status-success)', marginTop: 2 }}>
+            {fmtFull(lastMonth?.remainingDebt || 0)}{' '}
+            <span style={{ fontSize: '0.72rem', color: 'var(--as-status-success)' }}>
+              (−{fmt(totalEliminatedDebt)} paid down)
+            </span>
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Cards Knocked Out ({horizonMonths}M)</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-status-info)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Cards Knocked Out ({horizonMonths}M)</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-status-info)', marginTop: 2 }}>
             {allKnockedOutCards.length} Debts Eliminated
           </div>
         </div>
         <div>
-          <div style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>Monthly Cash Flow Unlocked</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.95rem', fontWeight: 700, color: 'var(--as-status-success)', marginTop: 2 }}>
+          <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Monthly Cash Flow Unlocked</div>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.95rem', fontWeight: 700, color: 'var(--as-status-success)', marginTop: 2 }}>
             +{fmtFull(monthlyFreedCash)}/mo freed
           </div>
         </div>
       </div>
 
+      {/* Empty Debt State when user has zero debt obligations */}
+      {!hasDebts && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '16px 18px',
+            background: 'var(--as-bg-base)',
+            border: '1px solid var(--as-border-subtle)',
+            borderRadius: 'var(--as-radius-md)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
+          <CheckCircle2 size={18} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-success)', flexShrink: 0 }} />
+          <div>
+            <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
+              No active debt obligations to amortize
+            </div>
+            <div style={{ fontSize: '0.76rem', color: 'var(--as-text-secondary)', marginTop: 2 }}>
+              All monthly surplus flows directly into liquid cash across this {horizonMonths}-month horizon. Add credit cards or loans on the Debts route to simulate Snowball and Avalanche knock-out schedules.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LOCKED-IN OPTION D: Creditor-by-Month Knock-Out Matrix Table */}
-      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-        <table className="data-table" style={{ fontSize: '0.76rem', whiteSpace: 'nowrap' }}>
-          <thead>
-            <tr>
-              <th>CREDITOR / METRIC</th>
-              <th style={{ textAlign: 'right' }}>START BAL</th>
-              {simulatedMonths.map((m) => (
-                <th key={m.monthIndex} style={{ textAlign: 'right' }}>{m.shortLabel.toUpperCase()}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ background: 'var(--as-bg-elevated)' }}>
-              <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <TrendingUp size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                Total Projected Liquid Cash
-              </td>
-              <td className="amount" style={{ fontWeight: 700 }}>{fmt(startingBalance)}</td>
-              {simulatedMonths.map((m) => (
-                <td key={m.monthIndex} className="amount" style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>{fmt(m.endingCash)}</td>
-              ))}
-            </tr>
-            {(simulatedMonths[0]?.debtDetails || []).map((firstDebt) => (
-              <tr key={firstDebt.id}>
-                <td style={{ fontWeight: 600 }}>
-                  {firstDebt.name} <span style={{ fontSize: '0.66rem', color: 'var(--as-text-muted)' }}>({firstDebt.apr}%)</span>
-                </td>
-                <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>{fmt(firstDebt.startBalance)}</td>
-                {simulatedMonths.map((m) => {
-                  const cell = m.debtDetails.find((d) => d.id === firstDebt.id);
-                  const bal = cell?.endBalance ?? 0;
-                  return (
-                    <td
-                      key={m.monthIndex}
-                      className="amount"
-                      style={{
-                        fontWeight: bal <= 0.01 ? 700 : 500,
-                        color: bal <= 0.01 ? 'var(--as-status-success)' : 'var(--as-status-warning)',
-                      }}
-                    >
-                      {bal <= 0.01 ? 'PAID OFF' : fmt(bal)}
-                    </td>
-                  );
-                })}
+      <div className="scroll-table-wrapper">
+        <div className="scroll-table-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <table className="data-table" style={{ fontSize: '0.76rem', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+            <thead>
+              <tr>
+                <th>CREDITOR / METRIC</th>
+                <th style={{ textAlign: 'right' }}>START BAL</th>
+                {simulatedMonths.map((m) => (
+                  <th key={m.monthIndex} style={{ textAlign: 'right' }}>{m.shortLabel.toUpperCase()}</th>
+                ))}
               </tr>
-            ))}
-            <tr style={{ background: 'var(--as-bg-elevated)' }}>
-              <td style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>Total Remaining Debt</td>
-              <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmt(initialTotalDebt)}</td>
-              {simulatedMonths.map((m) => (
-                <td key={m.monthIndex} className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmt(m.remainingDebt)}</td>
+            </thead>
+            <tbody>
+              <tr style={{ background: 'var(--as-bg-elevated)' }}>
+                <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <TrendingUp size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  Total Projected Liquid Cash
+                </td>
+                <td className="amount" style={{ fontWeight: 700, color: startingBalance >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)' }}>
+                  {fmt(startingBalance)}
+                </td>
+                {simulatedMonths.map((m) => (
+                  <td
+                    key={m.monthIndex}
+                    className="amount"
+                    style={{
+                      fontWeight: 700,
+                      color: m.endingCash >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)',
+                    }}
+                  >
+                    {fmt(m.endingCash)}
+                  </td>
+                ))}
+              </tr>
+              {(simulatedMonths[0]?.debtDetails || []).map((firstDebt) => (
+                <tr key={firstDebt.id}>
+                  <td style={{ fontWeight: 600 }}>
+                    {firstDebt.name}{' '}
+                    <span style={{ fontSize: '0.6875rem', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--as-text-tertiary)' }}>
+                      ({firstDebt.apr}%)
+                    </span>
+                  </td>
+                  <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>{fmt(firstDebt.startBalance)}</td>
+                  {simulatedMonths.map((m) => {
+                    const cell = m.debtDetails.find((d) => d.id === firstDebt.id);
+                    const bal = cell?.endBalance ?? 0;
+                    return (
+                      <td
+                        key={m.monthIndex}
+                        className="amount"
+                        style={{
+                          fontWeight: bal <= 0.01 ? 700 : 500,
+                          color: bal <= 0.01 ? 'var(--as-status-success)' : 'var(--as-status-warning)',
+                        }}
+                      >
+                        {bal <= 0.01 ? 'PAID OFF' : fmt(bal)}
+                      </td>
+                    );
+                  })}
+                </tr>
               ))}
-            </tr>
-          </tbody>
-        </table>
+              {hasDebts && (
+                <tr style={{ background: 'var(--as-bg-elevated)' }}>
+                  <td style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>Total Remaining Debt</td>
+                  <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmt(initialTotalDebt)}</td>
+                  {simulatedMonths.map((m) => (
+                    <td key={m.monthIndex} className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmt(m.remainingDebt)}</td>
+                  ))}
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
