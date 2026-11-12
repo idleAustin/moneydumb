@@ -10,11 +10,13 @@ export const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-export const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+export function fmt(n: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
+}
 
-export const fmtFull = (n: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+export function fmtFull(n: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
 
 export function getOrdinal(n: number) {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -27,6 +29,25 @@ export function formatPayDate(dateStr: string) {
   const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
   if (Number.isNaN(d.getTime())) return '';
   return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}${getOrdinal(d.getDate())}`;
+}
+
+export function formatDebtTierLabel(tier: string): string {
+  switch (tier) {
+    case 'payoff_plan':
+      return 'Committed Plan';
+    case 'due':
+    case 'due_now':
+      return 'Due Now';
+    case 'min':
+    case 'minimum':
+      return 'Minimum';
+    case 'full':
+      return 'Full Balance';
+    case 'custom':
+      return 'Custom Amount';
+    default:
+      return tier;
+  }
 }
 
 function getMonogram(name: string): string {
@@ -129,6 +150,7 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [instanceId, setInstanceId] = useState<string | null>(null);
   const [memoryOnly, setMemoryOnly] = useState(defaultMemoryOnly);
   const [usingBenchmark, setUsingBenchmark] = useState(false);
@@ -158,16 +180,31 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
   const [inboundModalAccountId, setInboundModalAccountId] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  const saveTimer = useRef<NodeJS.Timeout | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestCounterRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const showToast = useCallback((msg: string) => {
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
     setToastMsg(msg);
-    setTimeout(() => {
+    toastTimer.current = setTimeout(() => {
       setToastMsg((curr) => (curr === msg ? null : curr));
     }, 3200);
   }, []);
 
   const applyBenchmarkState = useCallback(() => {
+    setError(null);
     setData(BENCHMARK_DATA);
     setUsingBenchmark(true);
     setPaidIncome({ 'inc-pay-1': true, 'inc-pay-2': true });
@@ -187,14 +224,25 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
   }, []);
 
   const loadMonth = useCallback(async (m: number, y: number) => {
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const reqId = ++requestCounterRef.current;
+
     setLoading(true);
+    setError(null);
+
     try {
       const [monthData, instance, committed, proj] = await Promise.all([
-        axios.get('/api/summary/this-month').then((r) => r.data),
-        axios.post('/api/sandbox/instances', { month: m, year: y }).then((r) => r.data),
-        axios.get('/api/debts/payoff/committed').then((r) => r.data).catch(() => null),
-        axios.get('/api/summary/budget-projection', { params: { months: 3 } }).then((r) => r.data).catch(() => null),
+        axios.get('/api/summary/this-month', { signal: controller.signal }).then((r) => r.data),
+        axios.post('/api/sandbox/instances', { month: m, year: y }, { signal: controller.signal }).then((r) => r.data),
+        axios.get('/api/debts/payoff/committed', { signal: controller.signal }).then((r) => r.data).catch(() => null),
+        axios.get('/api/summary/budget-projection', { params: { months: 3 }, signal: controller.signal }).then((r) => r.data).catch(() => null),
       ]);
+
+      if (reqId !== requestCounterRef.current || controller.signal.aborted) {
+        return;
+      }
 
       const hasLiveItems =
         (monthData?.expense_items?.length || 0) +
@@ -204,7 +252,14 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
 
       if (!hasLiveItems && defaultMemoryOnly) {
         applyBenchmarkState();
-        setLoading(false);
+        return;
+      }
+
+      const items = await axios
+        .get(`/api/sandbox/instances/${instance.id}/items`, { signal: controller.signal })
+        .then((r) => r.data);
+
+      if (reqId !== requestCounterRef.current || controller.signal.aborted) {
         return;
       }
 
@@ -214,7 +269,6 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
       setCommittedPlan(committed);
       setProjection(proj);
 
-      const items = await axios.get(`/api/sandbox/instances/${instance.id}/items`).then((r) => r.data);
       const pi: Record<string, boolean> = {};
       const pe: Record<string, boolean> = {};
       const pd: Record<string, boolean> = {};
@@ -255,12 +309,31 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
       setDebtAccounts(dAcct);
       setAccountBalanceOverrides({});
       setAdhocItems(adhocs);
-    } catch {
-      applyBenchmarkState();
+    } catch (err: any) {
+      if (
+        axios.isCancel(err) ||
+        err?.name === 'CanceledError' ||
+        controller.signal.aborted ||
+        reqId !== requestCounterRef.current
+      ) {
+        return;
+      }
+
+      if (defaultMemoryOnly) {
+        applyBenchmarkState();
+      } else {
+        setError("Unable to load this month's ledger. Check your connection and retry.");
+      }
     } finally {
-      setLoading(false);
+      if (reqId === requestCounterRef.current && !controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [applyBenchmarkState, defaultMemoryOnly]);
+
+  const reload = useCallback(() => {
+    loadMonth(viewMonth, viewYear);
+  }, [loadMonth, viewMonth, viewYear]);
 
   useEffect(() => {
     loadMonth(viewMonth, viewYear);
@@ -269,7 +342,7 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
   const persistState = useCallback(() => {
     if (memoryOnly || usingBenchmark || !instanceId || !data) return;
     const items: any[] = [];
-    data.income_items.forEach((item: any) => {
+    (data.income_items || []).forEach((item: any) => {
       items.push({
         item_type: 'income',
         item_ref_id: item.id,
@@ -278,7 +351,7 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
         account_id: null,
       });
     });
-    data.expense_items.forEach((item: any) => {
+    (data.expense_items || []).forEach((item: any) => {
       items.push({
         item_type: 'expense',
         item_ref_id: item.id,
@@ -287,7 +360,7 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
         account_id: expenseAccounts[item.id] || item.account_id || null,
       });
     });
-    data.debt_items.forEach((item: any) => {
+    (data.debt_items || []).forEach((item: any) => {
       items.push({
         item_type: 'debt',
         item_ref_id: item.id,
@@ -296,8 +369,10 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
         account_id: debtAccounts[item.id] || item.account_id || null,
       });
     });
-    axios.put(`/api/sandbox/instances/${instanceId}/items`, items).catch(console.error);
-  }, [memoryOnly, usingBenchmark, instanceId, data, paidIncome, paidExpenses, paidDebts, incomeAmounts, expenseAmounts, debtAmounts, expenseAccounts, debtAccounts]);
+    axios.put(`/api/sandbox/instances/${instanceId}/items`, items).catch(() => {
+      showToast('Unable to sync monthly ledger changes. Check your connection.');
+    });
+  }, [memoryOnly, usingBenchmark, instanceId, data, paidIncome, paidExpenses, paidDebts, incomeAmounts, expenseAmounts, debtAmounts, expenseAccounts, debtAccounts, showToast]);
 
   useEffect(() => {
     if (!instanceId || !data || memoryOnly || usingBenchmark) return;
@@ -443,6 +518,40 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
     );
   }, [showToast]);
 
+  const toggleCategoryObligations = useCallback((items: UnifiedObligation[], categoryLabel?: string) => {
+    if (items.length === 0) return;
+    const allPaid = items.every((b) => b.isPaid);
+    const nextPaid = !allPaid;
+    const expUpdates: Record<string, boolean> = {};
+    const debtUpdates: Record<string, boolean> = {};
+    let changedCount = 0;
+
+    items.forEach((ob) => {
+      if (ob.isPaid !== nextPaid) {
+        changedCount += 1;
+        if (ob.type === 'debt') {
+          debtUpdates[ob.id] = nextPaid;
+        } else {
+          expUpdates[ob.id] = nextPaid;
+        }
+      }
+    });
+
+    if (Object.keys(expUpdates).length > 0) {
+      setPaidExpenses((p) => ({ ...p, ...expUpdates }));
+    }
+    if (Object.keys(debtUpdates).length > 0) {
+      setPaidDebts((p) => ({ ...p, ...debtUpdates }));
+    }
+
+    const label = categoryLabel || items[0]?.category || 'category';
+    showToast(
+      nextPaid
+        ? `Cleared ${changedCount} ${changedCount === 1 ? 'bill' : 'bills'} in ${label}.`
+        : `Restored ${changedCount} ${changedCount === 1 ? 'bill' : 'bills'} in ${label} to due queue.`
+    );
+  }, [showToast]);
+
   const handleSetDebtTier = useCallback((ob: UnifiedObligation, tier: string) => {
     const item = ob.rawItem;
     setDebtPayTiers((p) => ({ ...p, [item.id]: tier }));
@@ -455,21 +564,31 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
     } else if (tier === 'full') {
       setDebtAmounts((p) => ({ ...p, [item.id]: item.balance }));
     }
-    showToast(`Updated ${ob.name} tier to ${tier.toUpperCase()}.`);
+    showToast(`Updated ${ob.name} payment tier to ${formatDebtTierLabel(tier)}.`);
   }, [showToast]);
 
   const saveObligationAmount = useCallback(async (ob: UnifiedObligation, val: number, scope: 'month' | 'master' = 'month') => {
-    if (isNaN(val) || val < 0) return;
+    if (Number.isNaN(val) || val < 0) return;
     if (ob.type === 'debt') {
       setDebtAmounts((p) => ({ ...p, [ob.id]: val }));
       setDebtPayTiers((p) => ({ ...p, [ob.id]: 'custom' }));
       if (scope === 'master' && !memoryOnly && !usingBenchmark) {
-        await axios.put(`/api/debts/${ob.id}`, { minimum_payment: val }).catch(console.error);
+        try {
+          await axios.put(`/api/debts/${ob.id}`, { minimum_payment: val });
+        } catch {
+          showToast(`Unable to save master rule for ${ob.name}. Updated for this month only.`);
+          return;
+        }
       }
     } else {
       setExpenseAmounts((p) => ({ ...p, [ob.id]: val }));
       if (scope === 'master' && !memoryOnly && !usingBenchmark) {
-        await axios.put(`/api/expenses/${ob.id}`, { amount: val }).catch(console.error);
+        try {
+          await axios.put(`/api/expenses/${ob.id}`, { amount: val });
+        } catch {
+          showToast(`Unable to save master rule for ${ob.name}. Updated for this month only.`);
+          return;
+        }
       }
     }
     showToast(`Saved ${ob.name} amount (${fmtFull(val)}) — ${scope === 'master' ? 'Master Rule' : 'This Month'}.`);
@@ -486,17 +605,26 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
   }, [data, showToast]);
 
   const saveAccountBalance = useCallback(async (accountId: string, newBalance: number) => {
-    if (isNaN(newBalance)) return;
+    if (Number.isNaN(newBalance)) return;
     setAccountBalanceOverrides((p) => ({ ...p, [accountId]: newBalance }));
     const acctName = data?.accounts?.find((a: any) => a.id === accountId)?.name || 'Account';
     if (!memoryOnly && !usingBenchmark) {
-      await axios.put(`/api/accounts/${accountId}`, { balance: newBalance }).catch(console.error);
+      try {
+        await axios.put(`/api/accounts/${accountId}`, { balance: newBalance });
+      } catch {
+        showToast(`Unable to persist ${acctName} balance to database. Updated for this session.`);
+        return;
+      }
     }
     showToast(`Updated ${acctName} balance to ${fmtFull(newBalance)}.`);
   }, [data, memoryOnly, usingBenchmark, showToast]);
 
-  const saveIncomeDate = useCallback((incomeId: string, newDate: string) => {
+  const saveIncomeDate = useCallback(async (incomeId: string, newDate: string) => {
     if (!newDate) return;
+    const targetItem = data?.income_items?.find((i: any) => i.id === incomeId);
+    const incName = targetItem?.name || 'Inbound deposit';
+    const sourceId = targetItem?.source_id || targetItem?.income_source_id;
+
     setData((prev: any) => {
       if (!prev?.income_items) return prev;
       return {
@@ -506,19 +634,40 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
         ),
       };
     });
-    const incName = data?.income_items?.find((i: any) => i.id === incomeId)?.name || 'Inbound deposit';
+
+    if (!memoryOnly && !usingBenchmark && sourceId) {
+      try {
+        await axios.put('/api/income/sources', {
+          id: sourceId,
+          name: targetItem?.source_name || targetItem?.name,
+          amount: targetItem?.amount,
+          frequency: targetItem?.frequency,
+          pay_date: newDate,
+          next_pay_date: newDate,
+        });
+      } catch {
+        showToast(`Unable to persist ${incName} deposit date to database. Updated for this session.`);
+        return;
+      }
+    }
+
     showToast(`Updated ${incName} date to ${formatPayDate(newDate)}.`);
-  }, [data, showToast]);
+  }, [data, memoryOnly, usingBenchmark, showToast]);
 
   const saveIncomeAmount = useCallback((incomeId: string, newAmount: number) => {
-    if (isNaN(newAmount) || newAmount < 0) return;
+    if (Number.isNaN(newAmount) || newAmount < 0) return;
     setIncomeAmounts((p) => ({ ...p, [incomeId]: newAmount }));
     const incName = data?.income_items?.find((i: any) => i.id === incomeId)?.name || 'Inbound deposit';
     showToast(`Updated ${incName} amount to ${fmtFull(newAmount)}.`);
   }, [data, showToast]);
 
-  const saveAllocationValue = useCallback((incomeSourceId: string, accountId: string, newValue: number, allocationType: 'percent' | 'fixed' = 'percent') => {
-    if (isNaN(newValue) || newValue < 0) return;
+  const saveAllocationValue = useCallback(async (incomeSourceId: string, accountId: string, newValue: number, allocationType: 'percent' | 'fixed' = 'percent') => {
+    if (Number.isNaN(newValue) || newValue < 0) return;
+    const existingAlloc = (data?.allocations || []).find(
+      (a: any) => a.income_source_id === incomeSourceId && a.account_id === accountId
+    );
+    const allocationId = existingAlloc?.id ?? existingAlloc?.allocation_id;
+
     setData((prev: any) => {
       if (!prev) return prev;
       const existing = prev.allocations || [];
@@ -542,21 +691,39 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
           ];
       return { ...prev, allocations: nextAllocs };
     });
+
     const acctName = data?.accounts?.find((a: any) => a.id === accountId)?.name || 'Account';
-    showToast(
-      `Updated ${acctName} inbound allocation to ${allocationType === 'percent' ? `${newValue}%` : fmtFull(newValue)}.`
-    );
-  }, [data, showToast]);
+    const formattedVal = allocationType === 'percent' ? `${newValue}%` : fmtFull(newValue);
+
+    if (!memoryOnly && !usingBenchmark && allocationId) {
+      try {
+        await axios.put('/api/income/allocations', {
+          id: allocationId,
+          allocation_id: allocationId,
+          income_source_id: incomeSourceId,
+          account_id: accountId,
+          allocation_type: allocationType,
+          allocation_value: newValue,
+        });
+      } catch {
+        showToast(`Unable to persist ${acctName} allocation split to database. Updated for this session.`);
+        return;
+      }
+    }
+
+    showToast(`Updated ${acctName} inbound allocation to ${formattedVal}.`);
+  }, [data, memoryOnly, usingBenchmark, showToast]);
 
   return {
-    data, loading, viewMonth, viewYear, setViewMonth, setViewYear,
+    data, loading, error, reload,
+    viewMonth, viewYear, setViewMonth, setViewYear,
     isCurrentMonth, isFutureMonth, monthOffset, todayDay,
-    memoryOnly, setMemoryOnly, usingBenchmark, applyBenchmarkState, loadMonth,
+    memoryOnly, setMemoryOnly, usingBenchmark, applyBenchmarkState, resetToBenchmark: applyBenchmarkState, loadMonth,
     paidIncome, setPaidIncome, paidExpenses, setPaidExpenses, paidDebts, setPaidDebts, paidAdhoc, setPaidAdhoc,
     incomeAmounts, setIncomeAmounts, adhocItems, setAdhocItems,
     committedPlan, projection, usePaymentStrategy, setUsePaymentStrategy,
     getIncomeAmount, getExpenseAmount, getEffectiveDebtAmount, getExpenseAccountId, getDebtAccountId,
-    unifiedObligations, toggleObligation, handleSetDebtTier, saveObligationAmount, assignObligationAccount,
+    unifiedObligations, toggleObligation, toggleCategoryObligations, handleSetDebtTier, saveObligationAmount, assignObligationAccount,
     accountBalanceOverrides, saveAccountBalance, saveIncomeDate, saveIncomeAmount, saveAllocationValue,
     inboundModalAccountId, setInboundModalAccountId,
     selectedAccountFilter, setSelectedAccountFilter, accountPreset, setAccountPreset, hiddenAccountIds, setHiddenAccountIds,
@@ -564,4 +731,3 @@ export function useSandboxMonth(defaultMemoryOnly = false) {
     toastMsg, showToast, instanceId,
   };
 }
-

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Landmark,
   PiggyBank,
   TrendingUp,
+  AlertCircle,
+  Plus,
 } from 'lucide-react';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
@@ -14,27 +16,29 @@ import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
 
-const fmt = (n: number) =>
-  new Intl.NumberFormat('en-US', {
+const fmt = (n: number) => {
+  const val = Object.is(n, -0) || Math.abs(n) < 0.00001 ? 0 : n;
+  return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(n);
+  }).format(val);
+};
 
 const fmtDate = (d: string | null) => {
   if (!d) return null;
-  const dateStr = d.endsWith('Z') ? d : d + 'Z';
-  try {
-    return new Date(dateStr).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  } catch (e) {
-    return d;
-  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+  const normalized = /[zZ]|[+-]\d{2}:\d{2}$/.test(d) ? d : `${d.replace(' ', 'T')}Z`;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return d;
+  return parsed.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 interface Account {
@@ -46,21 +50,69 @@ interface Account {
   balance_updated_at: string | null;
 }
 
+const ACCOUNT_TYPE_LABELS: Record<Account['account_type'], string> = {
+  checking: 'Checking',
+  savings: 'Savings',
+  investment: 'Investment',
+};
+
 export default function Accounts() {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', account_type: 'checking', balance: '', notes: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [form, setForm] = useState<{
+    name: string;
+    account_type: Account['account_type'];
+    balance: string;
+    notes: string;
+  }>({
+    name: '',
+    account_type: 'checking',
+    balance: '',
+    notes: '',
+  });
 
-  const load = () => {
-    axios
+  const load = useCallback(() => {
+    return axios
       .get('/api/accounts')
-      .then((r) => setAccounts(r.data))
-      .catch(console.error);
+      .then((r) => {
+        setAccounts(Array.isArray(r.data) ? r.data : []);
+        setError(null);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Unable to load bank accounts. Check your connection and try again.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+
+  const handleRetry = () => {
+    if (accounts.length === 0) setLoading(true);
+    setError(null);
+    void load();
   };
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!showModal) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !submitting) {
+        setShowModal(false);
+        setFormError(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showModal, submitting]);
 
   const {
     data: filteredAndSortedAccounts,
@@ -78,6 +130,9 @@ export default function Accounts() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
+    setSubmitting(true);
+    setFormError(null);
     try {
       await axios.post('/api/accounts', {
         ...form,
@@ -85,31 +140,45 @@ export default function Accounts() {
       });
       setForm({ name: '', account_type: 'checking', balance: '', notes: '' });
       setShowModal(false);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setFormError('Could not create account. Please verify your entries and try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const updateAccountItem = async (id: string, payload: Partial<Account>) => {
+  const updateAccountItem = async (acct: Account, payload: Partial<Account>) => {
+    setUpdatingId(acct.id);
     try {
-      await axios.put(`/api/accounts/${id}`, payload);
-      load();
+      await axios.put(`/api/accounts/${acct.id}`, {
+        name: acct.name,
+        account_type: acct.account_type,
+        balance: acct.balance,
+        notes: acct.notes,
+        ...payload,
+      });
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Could not save account update. Please retry.');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const deleteAccountItem = async (id: string) => {
     try {
       await axios.delete(`/api/accounts/${id}`);
-      load();
+      await load();
     } catch (err) {
       console.error(err);
+      setError('Could not delete account. Please retry.');
     }
   };
 
-  const total = accounts.reduce((s, a) => s + Number(a.balance), 0);
+  const totalBalance = accounts.reduce((s, a) => s + Number(a.balance), 0);
   const checkingTotal = accounts
     .filter((a) => a.account_type === 'checking')
     .reduce((s, a) => s + Number(a.balance), 0);
@@ -126,231 +195,446 @@ export default function Accounts() {
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2>Bank Accounts</h2>
-        <p>Manage your accounts and track balances</p>
-      </div>
-
-      <div className="card-grid-3 section">
-        <div className="stat-card stat-green">
-          <div className="stat-label">Total Balance</div>
-          <div className="stat-value">{fmt(total)}</div>
-          <div className="stat-sub">{accounts.length} accounts</div>
-        </div>
-        <div className="stat-card stat-blue">
-          <div className="stat-label">Checking</div>
-          <div className="stat-value">{fmt(checkingTotal)}</div>
-        </div>
-        <div className="stat-card stat-purple">
-          <div className="stat-label">Savings & Investments</div>
-          <div className="stat-value">{fmt(savingsTotal)}</div>
+        <div>
+          <h2>
+            <Landmark
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Accounts</span>
+          </h2>
+          <p>Track checking, savings, and investment balances across your institutions.</p>
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h3>All Accounts</h3>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <ExcelUpload
-              templateName="accounts_template.xlsx"
-              templateColumns={[
-                { header: 'Name', example: 'Chase Checking' },
-                { header: 'Type', example: 'checking' },
-                { header: 'Balance', example: 1500.0 },
-                { header: 'Notes', example: 'Primary account' },
-              ]}
-              onImport={async (rows) => {
-                let created = 0;
-                const errors: string[] = [];
-                for (let i = 0; i < rows.length; i++) {
-                  const r = rows[i];
-                  const name = String(r['Name'] || '').trim();
-                  if (!name) {
-                    errors.push(`Row ${i + 2}: Missing Name`);
-                    continue;
-                  }
-                  const acctType = String(r['Type'] || 'checking').trim().toLowerCase();
-                  if (!['checking', 'savings', 'investment'].includes(acctType)) {
-                    errors.push(`Row ${i + 2}: Invalid Type "${acctType}"`);
-                    continue;
-                  }
-                  try {
-                    await axios.post('/api/accounts', {
-                      name,
-                      account_type: acctType,
-                      balance: parseFloat(r['Balance']) || 0,
-                      notes: r['Notes'] || null,
-                    });
-                    created++;
-                  } catch (e: any) {
-                    errors.push(`Row ${i + 2}: ${e.message}`);
-                  }
-                }
-                return { created, errors };
-              }}
-              onComplete={load}
+      {error && (
+        <div className="error-state-banner section" role="alert">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertCircle
+              size={16}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-status-error)', flexShrink: 0 }}
             />
-            <TableSearch
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
-              isOpen={searchOpen}
-              setIsOpen={setSearchOpen}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowModal(true)}
-              aria-label="Add bank account"
-            >
-              + Add Account
-            </button>
+            <span>{error}</span>
           </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-small"
+            onClick={handleRetry}
+          >
+            Retry
+          </button>
         </div>
+      )}
 
-        {accounts.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <Landmark
-                size={32}
-                strokeWidth={2.0}
-                aria-hidden="true"
-                focusable="false"
-                style={{ color: 'var(--as-accent-primary)' }}
-              />
+      {loading ? (
+        <div aria-busy="true" aria-label="Loading bank accounts">
+          <div className="card-grid-3 section">
+            {[0, 1, 2].map((idx) => (
+              <div key={idx} className="stat-card">
+                <div
+                  className="skeleton"
+                  style={{ height: 12, width: '42%', marginBottom: 12 }}
+                  aria-hidden="true"
+                />
+                <div
+                  className="skeleton"
+                  style={{ height: 28, width: '68%', marginBottom: 8 }}
+                  aria-hidden="true"
+                />
+                <div
+                  className="skeleton"
+                  style={{ height: 12, width: '32%' }}
+                  aria-hidden="true"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="card">
+            <div className="card-header">
+              <div className="skeleton" style={{ height: 18, width: 140 }} aria-hidden="true" />
+              <div className="skeleton" style={{ height: 36, width: 130 }} aria-hidden="true" />
             </div>
-            <h3>Zero accounts recorded.</h3>
-            <p>Add bank and investment accounts to monitor balances.</p>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowModal(true)}
-              aria-label="Add bank account"
-            >
-              Add Account
-            </button>
+            {[0, 1, 2].map((idx) => (
+              <div
+                key={idx}
+                className="skeleton"
+                style={{ height: 44, width: '100%', marginBottom: 8 }}
+                aria-hidden="true"
+              />
+            ))}
           </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <TableHeader
-                  label="Account"
-                  sortKey="name"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
+        </div>
+      ) : (
+        <>
+          <div className="card-grid-3 section">
+            <div
+              className={`stat-card ${
+                totalBalance < -0.005
+                  ? 'stat-red'
+                  : totalBalance > 0.005
+                  ? 'stat-green'
+                  : 'stat-zero'
+              }`}
+            >
+              <div className="stat-label">Total Balance</div>
+              <div
+                className="stat-value"
+                style={{
+                  fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {fmt(totalBalance)}
+              </div>
+              <div
+                className="stat-sub"
+                style={{
+                  color: 'var(--as-text-secondary)',
+                  fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+              </div>
+            </div>
+            <div
+              className={`stat-card ${
+                checkingTotal < -0.005
+                  ? 'stat-red'
+                  : Math.abs(checkingTotal) < 0.005
+                  ? 'stat-zero'
+                  : ''
+              }`}
+            >
+              <div className="stat-label">Checking</div>
+              <div
+                className="stat-value"
+                style={{
+                  fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {fmt(checkingTotal)}
+              </div>
+            </div>
+            <div
+              className={`stat-card ${
+                savingsTotal < -0.005
+                  ? 'stat-red'
+                  : Math.abs(savingsTotal) < 0.005
+                  ? 'stat-zero'
+                  : ''
+              }`}
+            >
+              <div className="stat-label">Savings &amp; Investments</div>
+              <div
+                className="stat-value"
+                style={{
+                  fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {fmt(savingsTotal)}
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <h3>All Accounts</h3>
+              <div className="card-header-actions">
+                <ExcelUpload
+                  templateName="accounts_template.xlsx"
+                  templateColumns={[
+                    { header: 'Name', example: 'Chase Checking' },
+                    { header: 'Type', example: 'checking' },
+                    { header: 'Balance', example: 1500.0 },
+                    { header: 'Notes', example: 'Primary account' },
+                  ]}
+                  onImport={async (rows) => {
+                    let created = 0;
+                    const errors: string[] = [];
+                    for (let i = 0; i < rows.length; i++) {
+                      const r = rows[i];
+                      const name = String(r['Name'] || '').trim();
+                      if (!name) {
+                        errors.push(`Row ${i + 2}: Missing Name`);
+                        continue;
+                      }
+                      const acctType = String(r['Type'] || 'checking').trim().toLowerCase();
+                      if (!['checking', 'savings', 'investment'].includes(acctType)) {
+                        errors.push(`Row ${i + 2}: Invalid Type "${acctType}"`);
+                        continue;
+                      }
+                      try {
+                        await axios.post('/api/accounts', {
+                          name,
+                          account_type: acctType,
+                          balance: parseFloat(String(r['Balance'])) || 0,
+                          notes: r['Notes'] || null,
+                        });
+                        created++;
+                      } catch (e: unknown) {
+                        const msg = e instanceof Error ? e.message.replace(/\u0021/g, '.') : 'Import error';
+                        errors.push(`Row ${i + 2}: ${msg}`);
+                      }
+                    }
+                    return { created, errors };
+                  }}
+                  onComplete={() => {
+                    void load();
+                  }}
                 />
-                <TableHeader
-                  label="Type"
-                  sortKey="account_type"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Balance"
-                  sortKey="balance"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                  style={{ textAlign: 'right' }}
-                />
-                <TableHeader
-                  label="Last Updated"
-                  sortKey="balance_updated_at"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <TableHeader
-                  label="Notes"
-                  sortKey="notes"
-                  activeKey={sortKey}
-                  activeDirection={sortDirection}
-                  onClick={requestSort}
-                />
-                <th scope="col" style={{ width: 140 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAndSortedAccounts.map((a) => (
-                <tr key={a.id}>
-                  <td style={{ fontWeight: 600 }}>
-                    <span
-                      style={{
-                        marginRight: 6,
-                        verticalAlign: 'middle',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {typeIcons[a.account_type] || (
-                        <Landmark size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                      )}
-                    </span>{' '}
-                    <InlineEdit
-                      value={a.name}
-                      type="text"
-                      format="raw"
-                      onSave={async (val) => {
-                        await updateAccountItem(a.id, { name: String(val) });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <span
-                      className={`badge badge-${
-                        a.account_type === 'checking'
-                          ? 'blue'
-                          : a.account_type === 'savings'
-                          ? 'green'
-                          : 'purple'
-                      }`}
-                    >
-                      {a.account_type}
-                    </span>
-                  </td>
-                  <td className="amount">
-                    <InlineEdit
-                      value={a.balance}
-                      onSave={async (val) => {
-                        await updateAccountItem(a.id, { balance: Number(val) });
-                      }}
-                    />
-                  </td>
-                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
-                    {fmtDate(a.balance_updated_at) || '—'}
-                  </td>
-                  <td style={{ color: 'var(--as-text-muted)', fontSize: '0.85rem' }}>
-                    <InlineEdit
-                      value={a.notes || ''}
-                      type="text"
-                      format="raw"
-                      onSave={async (val) => {
-                        await updateAccountItem(a.id, { notes: String(val) || null });
-                      }}
-                    />
-                  </td>
-                  <td>
-                    <DeleteButton
-                      onDelete={() => deleteAccountItem(a.id)}
-                      ariaLabel={`Delete account ${a.name}`}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                {accounts.length > 0 && (
+                  <TableSearch
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isOpen={searchOpen}
+                    setIsOpen={setSearchOpen}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormError(null);
+                    setShowModal(true);
+                  }}
+                >
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Account</span>
+                </button>
+              </div>
+            </div>
+
+            {accounts.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <Landmark
+                    size={32}
+                    strokeWidth={2.0}
+                    aria-hidden="true"
+                    focusable="false"
+                    style={{ color: 'var(--as-accent-primary)' }}
+                  />
+                </div>
+                <h3>No accounts recorded yet</h3>
+                <p>Add bank and investment accounts to monitor balances and post-bill liquidity.</p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormError(null);
+                    setShowModal(true);
+                  }}
+                >
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Account</span>
+                </button>
+              </div>
+            ) : filteredAndSortedAccounts.length === 0 ? (
+              <div className="empty-state">
+                <h3>No matching accounts</h3>
+                <p>
+                  No accounts match &ldquo;{searchQuery}&rdquo;. Clear the search filter to view all
+                  accounts.
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setSearchQuery('')}
+                >
+                  Clear Search
+                </button>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <TableHeader
+                        label="Account"
+                        sortKey="name"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Type"
+                        sortKey="account_type"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Balance"
+                        sortKey="balance"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                        style={{ textAlign: 'right' }}
+                      />
+                      <TableHeader
+                        label="Last Updated"
+                        sortKey="balance_updated_at"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Notes"
+                        sortKey="notes"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <th scope="col" className="col-actions">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedAccounts.map((a) => {
+                      const bal = Number(a.balance);
+                      return (
+                        <tr key={a.id}>
+                          <td style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  color: 'var(--as-text-secondary)',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {typeIcons[a.account_type] || (
+                                  <Landmark
+                                    size={16}
+                                    strokeWidth={2.0}
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  />
+                                )}
+                              </span>
+                              <InlineEdit
+                                value={a.name}
+                                type="text"
+                                format="raw"
+                                ariaLabel={`Edit name for ${a.name}`}
+                                onSave={async (val) => {
+                                  await updateAccountItem(a, { name: String(val) });
+                                }}
+                              />
+                            </div>
+                          </td>
+                          <td>
+                            <select
+                              aria-label={`Edit account type for ${a.name}`}
+                              value={a.account_type}
+                              disabled={updatingId === a.id}
+                              onChange={(e) =>
+                                updateAccountItem(a, {
+                                  account_type: e.target.value as Account['account_type'],
+                                })
+                              }
+                              className="inline-table-select"
+                            >
+                              <option value="checking">{ACCOUNT_TYPE_LABELS.checking}</option>
+                              <option value="savings">{ACCOUNT_TYPE_LABELS.savings}</option>
+                              <option value="investment">{ACCOUNT_TYPE_LABELS.investment}</option>
+                            </select>
+                          </td>
+                          <td
+                            className="amount"
+                            style={{
+                              fontFamily: 'var(--as-font-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                              ...(bal < -0.005 ? { color: 'var(--as-status-error)' } : {}),
+                            }}
+                          >
+                            <InlineEdit
+                              value={a.balance}
+                              ariaLabel={`Edit balance for ${a.name}`}
+                              onSave={async (val) => {
+                                await updateAccountItem(a, { balance: Number(val) });
+                              }}
+                            />
+                          </td>
+                          <td className="cell-date">
+                            {fmtDate(a.balance_updated_at) || '—'}
+                          </td>
+                          <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
+                            <InlineEdit
+                              value={a.notes || ''}
+                              type="text"
+                              format="raw"
+                              ariaLabel={`Edit notes for ${a.name}`}
+                              onSave={async (val) => {
+                                await updateAccountItem(a, { notes: String(val) || null });
+                              }}
+                            />
+                          </td>
+                          <td className="col-actions">
+                            <div className="row-actions-group">
+                              <DeleteButton
+                                onDelete={() => deleteAccountItem(a.id)}
+                                ariaLabel={`Delete account ${a.name}`}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add Account</h3>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            if (!submitting) {
+              setShowModal(false);
+              setFormError(null);
+            }
+          }}
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-account-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="add-account-modal-title">Add Account</h3>
+            {formError && (
+              <p
+                role="alert"
+                style={{
+                  color: 'var(--as-status-error)',
+                  fontSize: '0.85rem',
+                  marginBottom: 12,
+                }}
+              >
+                {formError}
+              </p>
+            )}
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label>Account Name</label>
+                <label htmlFor="account-name">Account Name</label>
                 <input
+                  id="account-name"
                   type="text"
                   required
                   value={form.name}
@@ -360,10 +644,16 @@ export default function Accounts() {
               </div>
               <div className="form-row">
                 <div className="form-group">
-                  <label>Type</label>
+                  <label htmlFor="account-type">Type</label>
                   <select
+                    id="account-type"
                     value={form.account_type}
-                    onChange={(e) => setForm({ ...form, account_type: e.target.value as any })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        account_type: e.target.value as Account['account_type'],
+                      })
+                    }
                   >
                     <option value="checking">Checking</option>
                     <option value="savings">Savings</option>
@@ -371,19 +661,27 @@ export default function Accounts() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Current Balance</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.balance}
-                    onChange={(e) => setForm({ ...form, balance: e.target.value })}
-                    placeholder="0.00"
-                  />
+                  <label htmlFor="account-balance">Current Balance</label>
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="account-balance"
+                      type="number"
+                      step="0.01"
+                      className="has-unit-left"
+                      value={form.balance}
+                      onChange={(e) => setForm({ ...form, balance: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="form-group">
-                <label>Notes (optional)</label>
+                <label htmlFor="account-notes">Notes (optional)</label>
                 <input
+                  id="account-notes"
                   type="text"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -394,17 +692,20 @@ export default function Accounts() {
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
-                  aria-label="Cancel account creation"
+                  disabled={submitting}
+                  onClick={() => {
+                    setShowModal(false);
+                    setFormError(null);
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   className="btn btn-primary"
-                  aria-label="Submit account creation"
+                  disabled={submitting}
                 >
-                  Add Account
+                  {submitting ? 'Adding...' : 'Add Account'}
                 </button>
               </div>
             </form>

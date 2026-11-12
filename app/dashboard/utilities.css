@@ -20,11 +20,11 @@
   font-size: 0.85rem;
   transition: border-color var(--as-duration-normal) var(--as-ease-snap);
 }
-.float-group input:focus,
-.float-group select:focus {
-  outline: none;
+.float-group input:focus-visible,
+.float-group select:focus-visible {
+  outline: 2px solid var(--as-border-focus);
+  outline-offset: 2px;
   border-color: var(--as-border-focus);
-  box-shadow: 0 0 0 1px var(--as-border-focus);
 }
 .float-group label {
   position: absolute;
@@ -33,18 +33,18 @@
   transform: translateY(-50%);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--text-dim);
+  color: var(--as-text-tertiary);
   letter-spacing: 0.025em;
   pointer-events: none;
-  transition: all 200ms var(--ease);
+  transition: top 150ms var(--ease), transform 150ms var(--ease), font-size 150ms var(--ease), color 150ms var(--ease);
 }
 .float-group input:focus ~ label,
 .float-group input:not(:placeholder-shown) ~ label,
 .float-group select:focus ~ label,
 .float-group select:valid ~ label {
-  top: 6px;
+  top: 4px;
   transform: translateY(0);
-  font-size: 0.58rem;
+  font-size: 0.6875rem;
   color: var(--accent);
 }
 
@@ -60,6 +60,7 @@
   pointer-events: none;
 }
 .toast {
+  position: relative;
   pointer-events: auto;
   padding: 12px 20px;
   background: var(--as-bg-overlay);
@@ -71,20 +72,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  animation: toastIn 0.3s var(--as-ease-snap);
+  animation: toastIn 0.2s var(--as-ease-snap);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.7);
 }
 .toast-success { border-color: var(--as-status-success); }
-.toast-success::before {
-  content: '';
-  width: 2px;
-  height: 100%;
-  position: absolute;
-  left: 0;
-  top: 0;
-  background: var(--as-status-success);
-  border-radius: 2px 0 0 2px;
-}
 .toast-error { border-color: var(--as-status-error); }
 .toast-warning { border-color: var(--as-status-warning); }
 .toast-exit { animation: toastOut 0.25s var(--ease) forwards; }
@@ -155,28 +146,14 @@
 .hover-lift { transition: transform 200ms var(--ease), box-shadow 200ms var(--ease); }
 .hover-lift:hover { transform: translateY(-2px); box-shadow: var(--glow-sm); }
 
-/* Ambient glow — lime shift on hover */
-.glow-accent { position: relative; }
-.glow-accent::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  background: linear-gradient(135deg, var(--as-accent-muted), transparent 50%);
-  opacity: 0;
-  transition: opacity 300ms var(--as-ease-snap);
-  pointer-events: none;
-  z-index: -1;
-}
-.glow-accent:hover::after { opacity: 1; }
-
 /* Focus ring — visible keyboard focus */
 .btn:focus-visible,
 .btn-icon:focus-visible,
 .icon-action-btn:focus-visible,
 .sidebar-toggle:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--as-accent-primary);
   outline-offset: 2px;
 }
@@ -237,8 +214,8 @@ select:focus-visible {
 
 /* ========== IDLE AUSTIN ACTION COMPONENTS & TOOLTIPS ========== */
 .icon-action-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--as-radius-sm);
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
@@ -248,29 +225,35 @@ select:focus-visible {
   justify-content: center;
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
+  text-decoration: none;
   transition: transform var(--as-duration-fast) var(--as-ease-snap),
               background var(--as-duration-normal) ease,
               border-color var(--as-duration-normal) ease,
               box-shadow var(--as-duration-normal) ease;
 }
 
-.icon-action-btn:hover {
+.icon-action-btn:hover:not(:disabled) {
   color: var(--as-accent-primary);
   border-color: var(--as-accent-primary);
   background: var(--as-bg-elevated);
-  box-shadow: 0 0 14px var(--as-accent-glow);
-  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
-.icon-action-btn:active {
+.icon-action-btn:active:not(:disabled) {
   transform: scale(0.95);
   background: var(--as-accent-muted);
 }
 
-.icon-action-btn.danger:hover {
+.icon-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.icon-action-btn.danger:hover:not(:disabled) {
   color: var(--as-status-error);
   border-color: var(--as-status-error);
-  box-shadow: 0 0 14px var(--as-status-error-bg);
+  background: var(--as-status-error-bg);
 }
 
 /* Tooltip */
@@ -315,9 +298,9 @@ select:focus-visible {
 
 .tooltip-kbd {
   font-family: var(--as-font-mono);
-  font-size: 10px;
+  font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--as-text-muted);
+  color: var(--as-text-tertiary);
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
   padding: 1px 4px;
@@ -351,14 +334,27 @@ select:focus-visible {
   .btn,
   .btn-icon,
   .icon-action-btn,
+  .table-search-btn,
   .sidebar-toggle,
   .mobile-menu-btn,
   .cmd-trigger-btn,
   .cmd-item,
+  .filter-chip,
+  .seg-tab,
+  .proto-pill-btn,
   input,
   select,
   textarea {
     min-height: 44px;
+  }
+
+  .table-search-btn,
+  .icon-action-btn {
+    min-width: 44px;
+  }
+
+  select {
+    font-size: 16px;
   }
 
   .icon-dock {

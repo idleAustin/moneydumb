@@ -10,7 +10,7 @@ import {
   EyeOff,
   Check,
 } from 'lucide-react';
-import { UnifiedObligation, fmtFull } from '../hooks/useSandboxMonth';
+import { fmtFull } from '../hooks/useSandboxMonth';
 import TreasuryAndAccountStrip from '../components/TreasuryAndAccountStrip';
 import {
   FixedBillRow,
@@ -33,11 +33,14 @@ export default function VariantALedger({
   const [debtSortBy, setDebtSortBy] = useState<'due' | 'apr' | 'balance'>('due');
 
   const {
+    unifiedObligations,
     toggleObligation,
+    toggleCategoryObligations,
     handleSetDebtTier,
     saveObligationAmount,
     assignObligationAccount,
     setInspectedObligationId,
+    setSelectedAccountFilter,
   } = state;
 
   const { accountsWithMetrics, filteredObligations } = metrics;
@@ -51,7 +54,11 @@ export default function VariantALedger({
     return true;
   });
 
+  const totalRawExpenses = unifiedObligations.filter((o) => o.type === 'expense').length;
+  const totalRawDebts = unifiedObligations.filter((o) => o.type === 'debt').length;
+
   const allFixedBills = filteredObligations.filter((o) => o.type === 'expense');
+  const allFilteredDebts = filteredObligations.filter((o) => o.type === 'debt');
   const fixedBills = visibleObligations.filter((o) => o.type === 'expense');
 
   const debtObligations = visibleObligations
@@ -63,6 +70,14 @@ export default function VariantALedger({
     });
 
   const billCategories = Array.from(new Set(allFixedBills.map((b) => b.category)));
+
+  const visibleCategoryGroups = billCategories
+    .filter((cat) => selectedCategoryChip === 'ALL' || cat === selectedCategoryChip)
+    .map((cat) => ({
+      cat,
+      items: fixedBills.filter((b) => b.category === cat).sort((a, b) => a.dueDay - b.dueDay),
+    }))
+    .filter((g) => g.items.length > 0);
 
   const toggleCategoryCollapse = (cat: string) => {
     setCollapsedCategories((prev) => ({ ...prev, [cat]: !prev[cat] }));
@@ -76,13 +91,11 @@ export default function VariantALedger({
     setCollapsedCategories(next);
   };
 
-  const toggleEntireCategoryPaid = (catBills: UnifiedObligation[]) => {
-    const allPaid = catBills.every((b) => b.isPaid);
-    catBills.forEach((b) => {
-      if (b.isPaid === allPaid) {
-        toggleObligation(b);
-      }
-    });
+  const resetAllFilters = () => {
+    setSearchQuery('');
+    setHidePaid(false);
+    setSelectedCategoryChip('ALL');
+    setSelectedAccountFilter(null);
   };
 
   return (
@@ -103,16 +116,16 @@ export default function VariantALedger({
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ fontSize: '0.84rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7 }}>
+          <div style={{ fontSize: '0.84rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 7, fontVariantNumeric: 'tabular-nums' }}>
             <Receipt size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
             <span>
-              Fixed Bills ({allFixedBills.filter((b) => b.isPaid).length}/{allFixedBills.length} paid) & Credit Cards / Debts ({filteredObligations.filter((o) => o.type === 'debt' && o.isPaid).length}/{filteredObligations.filter((o) => o.type === 'debt').length} paid)
+              Fixed Bills ({allFixedBills.filter((b) => b.isPaid).length}/{allFixedBills.length} paid) &amp; Credit Cards / Debts ({allFilteredDebts.filter((o) => o.isPaid).length}/{allFilteredDebts.length} paid)
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <div className="tm-search-box">
-              <Search size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ position: 'absolute', left: 8, color: 'var(--as-text-muted)' }} />
+              <Search size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ position: 'absolute', left: 8, color: 'var(--as-text-tertiary)' }} />
               <input
                 type="text"
                 className="tm-search-input"
@@ -124,16 +137,20 @@ export default function VariantALedger({
             </div>
 
             <button
+              type="button"
+              className="tm-touch-btn"
               onClick={() => setHidePaid((p) => !p)}
+              aria-pressed={hidePaid}
               aria-label="Toggle hiding paid obligations"
               style={{
                 background: hidePaid ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
                 border: hidePaid ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                 color: hidePaid ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-                fontSize: '0.7rem',
+                fontSize: '0.72rem',
                 fontWeight: 600,
-                padding: '4px 10px',
-                borderRadius: 'var(--as-radius-md)',
+                minHeight: 30,
+                padding: '0 10px',
+                borderRadius: 'var(--as-radius-sm)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -146,16 +163,44 @@ export default function VariantALedger({
 
             <div style={{ display: 'flex', gap: 4 }}>
               <button
+                type="button"
+                className="tm-touch-btn"
                 onClick={() => setAllCategoriesCollapsed(false)}
                 aria-label="Expand all expense categories"
-                style={{ background: 'var(--as-bg-elevated)', border: '1px solid var(--as-border-subtle)', color: 'var(--as-text-secondary)', fontSize: '0.68rem', padding: '4px 8px', borderRadius: 'var(--as-radius-sm)', cursor: 'pointer' }}
+                style={{
+                  background: 'var(--as-bg-elevated)',
+                  border: '1px solid var(--as-border-subtle)',
+                  color: 'var(--as-text-secondary)',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  minHeight: 30,
+                  padding: '0 10px',
+                  borderRadius: 'var(--as-radius-sm)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
               >
                 Expand All
               </button>
               <button
+                type="button"
+                className="tm-touch-btn"
                 onClick={() => setAllCategoriesCollapsed(true)}
                 aria-label="Collapse all expense categories"
-                style={{ background: 'var(--as-bg-elevated)', border: '1px solid var(--as-border-subtle)', color: 'var(--as-text-secondary)', fontSize: '0.68rem', padding: '4px 8px', borderRadius: 'var(--as-radius-sm)', cursor: 'pointer' }}
+                style={{
+                  background: 'var(--as-bg-elevated)',
+                  border: '1px solid var(--as-border-subtle)',
+                  color: 'var(--as-text-secondary)',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  minHeight: 30,
+                  padding: '0 10px',
+                  borderRadius: 'var(--as-radius-sm)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
               >
                 Collapse All
               </button>
@@ -164,19 +209,25 @@ export default function VariantALedger({
         </div>
 
         {/* Category Filter Pills Bar */}
-        <div className="tm-category-pills">
+        <div className="tm-category-pills" role="group" aria-label="Filter fixed bills by category">
           <button
+            type="button"
             onClick={() => setSelectedCategoryChip('ALL')}
+            aria-pressed={selectedCategoryChip === 'ALL'}
             aria-label="Show all expense categories"
             style={{
-              padding: '3px 9px',
+              minHeight: 28,
+              padding: '0 10px',
               borderRadius: 'var(--as-radius-pill)',
               border: selectedCategoryChip === 'ALL' ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
               background: selectedCategoryChip === 'ALL' ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
               color: selectedCategoryChip === 'ALL' ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-              fontSize: '0.68rem',
+              fontSize: '0.72rem',
               fontWeight: 700,
+              fontVariantNumeric: 'tabular-nums',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
             }}
           >
             All Bills ({fixedBills.length} • {fmtFull(fixedBills.reduce((s, b) => s + b.amount, 0))})
@@ -189,17 +240,23 @@ export default function VariantALedger({
             return (
               <button
                 key={cat}
+                type="button"
                 onClick={() => setSelectedCategoryChip(isActive ? 'ALL' : cat)}
+                aria-pressed={isActive}
                 aria-label={`Filter fixed bills by ${cat}`}
                 style={{
-                  padding: '3px 9px',
+                  minHeight: 28,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-pill)',
                   border: isActive ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                   background: isActive ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
                   color: isActive ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-                  fontSize: '0.68rem',
+                  fontSize: '0.72rem',
                   fontWeight: isActive ? 700 : 600,
+                  fontVariantNumeric: 'tabular-nums',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 {cat} {paidInCat}/{catItems.length} ({fmtFull(catSum)})
@@ -214,18 +271,37 @@ export default function VariantALedger({
         {/* Left Column: Fixed Recurring Bills Grouped by Category */}
         <div style={{ background: 'var(--as-bg-surface)', border: '1px solid var(--as-border-subtle)', borderRadius: 'var(--as-radius-lg)', overflow: 'hidden' }}>
           <div className="tm-bill-grid-header">
-            <div>PAID</div>
+            <div style={{ textAlign: 'center' }}>PAID</div>
             <div>CATEGORY / EXPENSE</div>
             <div>DUE</div>
             <div>ACCOUNT</div>
             <div style={{ textAlign: 'right' }}>AMOUNT</div>
           </div>
 
-          {billCategories
-            .filter((cat) => selectedCategoryChip === 'ALL' || cat === selectedCategoryChip)
-            .map((cat) => {
-              const catItems = fixedBills.filter((b) => b.category === cat).sort((a, b) => a.dueDay - b.dueDay);
-              if (catItems.length === 0) return null;
+          {totalRawExpenses === 0 ? (
+            <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+              <Receipt size={20} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-tertiary)', marginBottom: 8 }} />
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
+                No recurring fixed bills scheduled
+              </div>
+              <p style={{ margin: '4px auto 0', fontSize: '0.78rem', color: 'var(--as-text-secondary)', maxWidth: '42ch' }}>
+                Add recurring monthly bills on the Expenses route to track due dates, bank routing, and payday checkoffs here.
+              </p>
+            </div>
+          ) : visibleCategoryGroups.length === 0 ? (
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
+                No fixed bills match the active filters
+              </div>
+              <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--as-text-secondary)', maxWidth: '42ch' }}>
+                Clear your search query, paid filter, or bank account filter to view all scheduled bills.
+              </p>
+              <button type="button" className="btn btn-secondary btn-small" onClick={resetAllFilters}>
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            visibleCategoryGroups.map(({ cat, items: catItems }) => {
               const totalCat = catItems.reduce((s, o) => s + o.amount, 0);
               const allCatPaid = catItems.every((i) => i.isPaid);
               const isCollapsed = !!collapsedCategories[cat];
@@ -235,7 +311,9 @@ export default function VariantALedger({
                   <div className="tm-bill-cat-row">
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <button
-                        onClick={() => toggleEntireCategoryPaid(catItems)}
+                        type="button"
+                        onClick={() => toggleCategoryObligations(catItems, cat)}
+                        aria-pressed={allCatPaid}
                         aria-label={`Mark all bills in ${cat} as ${allCatPaid ? 'unpaid' : 'paid'}`}
                         className={`tm-toggle ${allCatPaid ? 'tm-toggle-on' : ''}`}
                       >
@@ -243,19 +321,22 @@ export default function VariantALedger({
                       </button>
                     </div>
                     <button
+                      type="button"
+                      className="tm-touch-btn"
                       onClick={() => toggleCategoryCollapse(cat)}
+                      aria-expanded={!isCollapsed}
                       aria-label={`Toggle ${cat} category group`}
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 7, textAlign: 'left' }}
                     >
-                      <ChevronDown size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'none', color: 'var(--as-text-muted)' }} />
+                      <ChevronDown size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'none', color: 'var(--as-text-tertiary)' }} />
                       <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>{cat}</span>
-                      <span style={{ fontSize: '0.66rem', color: 'var(--as-text-muted)', fontFamily: 'var(--as-font-mono)' }}>
+                      <span style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}>
                         {catItems.filter((i) => i.isPaid).length}/{catItems.length}
                       </span>
                     </button>
                     <div className="tm-bill-cat-spacer" />
                     <div className="tm-bill-cat-spacer" />
-                    <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', color: allCatPaid ? 'var(--as-text-muted)' : 'var(--as-text-primary)', textDecoration: allCatPaid ? 'line-through' : 'none' }}>
+                    <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.78rem', fontWeight: 700, textAlign: 'right', color: allCatPaid ? 'var(--as-text-tertiary)' : 'var(--as-text-primary)', textDecoration: allCatPaid ? 'line-through' : 'none' }}>
                       {fmtFull(totalCat)}
                     </div>
                   </div>
@@ -274,7 +355,8 @@ export default function VariantALedger({
                     ))}
                 </div>
               );
-            })}
+            })
+          )}
         </div>
 
         {/* Right Column: Sticky Credit Cards & Debts */}
@@ -291,7 +373,7 @@ export default function VariantALedger({
               gap: 8,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', fontWeight: 700 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: '0.82rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
               <CreditCard size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-warning)' }} />
               <span>
                 Debts ({debtObligations.filter((d) => d.isPaid).length}/{debtObligations.length} paid)
@@ -299,57 +381,91 @@ export default function VariantALedger({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', background: 'var(--as-bg-base)', border: '1px solid var(--as-border-subtle)', borderRadius: 'var(--as-radius-sm)', padding: 2, gap: 2 }}>
+              <div
+                role="group"
+                aria-label="Sort debts"
+                style={{ display: 'flex', background: 'var(--as-bg-base)', border: '1px solid var(--as-border-subtle)', borderRadius: 'var(--as-radius-sm)', padding: 2, gap: 2 }}
+              >
                 {([
                   { key: 'due', label: 'Due' },
                   { key: 'apr', label: 'APR' },
                   { key: 'balance', label: 'Bal' },
-                ] as const).map((st) => (
-                  <button
-                    key={st.key}
-                    onClick={() => setDebtSortBy(st.key)}
-                    aria-label={`Sort debts by ${st.label}`}
-                    style={{
-                      background: debtSortBy === st.key ? 'var(--as-bg-overlay)' : 'transparent',
-                      color: debtSortBy === st.key ? 'var(--as-text-primary)' : 'var(--as-text-muted)',
-                      border: 'none',
-                      fontSize: '0.64rem',
-                      fontWeight: 600,
-                      padding: '2px 6px',
-                      borderRadius: 'var(--as-radius-sm)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {st.label}
-                  </button>
-                ))}
+                ] as const).map((st) => {
+                  const isActive = debtSortBy === st.key;
+                  return (
+                    <button
+                      key={st.key}
+                      type="button"
+                      className="tm-touch-btn"
+                      onClick={() => setDebtSortBy(st.key)}
+                      aria-pressed={isActive}
+                      aria-label={`Sort debts by ${st.label}`}
+                      style={{
+                        background: isActive ? 'var(--as-bg-overlay)' : 'transparent',
+                        color: isActive ? 'var(--as-text-primary)' : 'var(--as-text-secondary)',
+                        border: 'none',
+                        fontSize: '0.6875rem',
+                        fontWeight: 600,
+                        padding: '3px 8px',
+                        borderRadius: 'var(--as-radius-sm)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {st.label}
+                    </button>
+                  );
+                })}
               </div>
-              <span style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.78rem', fontWeight: 700, color: 'var(--as-status-warning)' }}>
+              <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.78rem', fontWeight: 700, color: debtObligations.reduce((s, d) => s + d.amount, 0) > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>
                 {fmtFull(debtObligations.reduce((s, d) => s + d.amount, 0))}
               </span>
             </div>
           </div>
 
           <div className="tm-debt-grid-header">
-            <div>PAID</div>
+            <div style={{ textAlign: 'center' }}>PAID</div>
             <div>CREDITOR / APR</div>
             <div>DUE</div>
             <div>ACCOUNT</div>
-            <div style={{ textAlign: 'right' }}>STRATEGY TIER & AMOUNT</div>
+            <div style={{ textAlign: 'right' }}>STRATEGY TIER &amp; AMOUNT</div>
           </div>
 
-          {debtObligations.map((ob) => (
-            <DebtObligationRow
-              key={`debt-${ob.id}`}
-              ob={ob}
-              accountsWithMetrics={accountsWithMetrics}
-              toggleObligation={toggleObligation}
-              handleSetDebtTier={handleSetDebtTier}
-              saveObligationAmount={saveObligationAmount}
-              assignObligationAccount={assignObligationAccount}
-              setInspectedObligationId={setInspectedObligationId}
-            />
-          ))}
+          {totalRawDebts === 0 ? (
+            <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+              <CreditCard size={20} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-tertiary)', marginBottom: 8 }} />
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
+                No active credit cards or debt obligations
+              </div>
+              <p style={{ margin: '4px auto 0', fontSize: '0.78rem', color: 'var(--as-text-secondary)', maxWidth: '38ch' }}>
+                Add credit cards or installment loans on the Debts route to manage Snowball and Avalanche payment tiers here.
+              </p>
+            </div>
+          ) : debtObligations.length === 0 ? (
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
+                No debts match the active filters
+              </div>
+              <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--as-text-secondary)', maxWidth: '38ch' }}>
+                Clear your search query, paid filter, or bank account filter to view all debt obligations.
+              </p>
+              <button type="button" className="btn btn-secondary btn-small" onClick={resetAllFilters}>
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            debtObligations.map((ob) => (
+              <DebtObligationRow
+                key={`debt-${ob.id}`}
+                ob={ob}
+                accountsWithMetrics={accountsWithMetrics}
+                toggleObligation={toggleObligation}
+                handleSetDebtTier={handleSetDebtTier}
+                saveObligationAmount={saveObligationAmount}
+                assignObligationAccount={assignObligationAccount}
+                setInspectedObligationId={setInspectedObligationId}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

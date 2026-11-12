@@ -6,6 +6,7 @@ const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
 
@@ -15,6 +16,8 @@ interface InlineEditProps {
   type?: 'number' | 'text';
   format?: 'currency' | 'percent' | 'raw';
   step?: string;
+  ariaLabel?: string;
+  align?: 'left' | 'right';
 }
 
 export default function InlineEdit({
@@ -23,6 +26,8 @@ export default function InlineEdit({
   type = 'number',
   format = 'currency',
   step = '0.01',
+  ariaLabel,
+  align,
 }: InlineEditProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -36,9 +41,16 @@ export default function InlineEdit({
   }, [editing]);
 
   const isValueEmpty = value === null || value === undefined || value === '';
+  const resolvedAlign = align ?? (type === 'number' ? 'right' : 'left');
 
   const startEdit = () => {
-    setDraft(isValueEmpty ? '' : String(value));
+    if (isValueEmpty) {
+      setDraft('');
+    } else if (type === 'number' && (format === 'currency' || format === 'percent')) {
+      setDraft(Number(value).toFixed(2));
+    } else {
+      setDraft(String(value));
+    }
     setEditing(true);
   };
 
@@ -64,8 +76,10 @@ export default function InlineEdit({
     : format === 'currency'
     ? fmt(Number(value))
     : format === 'percent'
-    ? `${value}%`
+    ? `${Number(value).toFixed(2)}%`
     : String(value);
+
+  const resolvedAria = ariaLabel || `Edit ${isValueEmpty ? (type === 'text' ? 'text value' : 'amount') : display}`;
 
   if (editing) {
     return (
@@ -80,18 +94,14 @@ export default function InlineEdit({
           if (e.key === 'Enter') save();
           if (e.key === 'Escape') cancel();
         }}
-        aria-label={type === 'text' ? 'Edit text value' : 'Edit numeric value'}
+        aria-label={resolvedAria}
+        className="inline-edit-input"
         style={{
-          background: 'var(--as-bg-base)',
-          border: '1px solid var(--as-accent-primary)',
-          borderRadius: 'var(--as-radius-sm)',
-          color: 'var(--as-text-primary)',
           fontFamily: type === 'text' ? 'var(--as-font-body)' : 'var(--as-font-mono)',
-          fontSize: '0.85rem',
-          padding: '4px 8px',
-          width: type === 'text' ? '160px' : '100px',
-          outline: 'none',
-          boxShadow: '0 0 0 2px var(--as-accent-muted)',
+          fontVariantNumeric: type === 'number' ? 'tabular-nums' : undefined,
+          textAlign: resolvedAlign,
+          width: type === 'text' ? '160px' : '104px',
+          maxWidth: '100%',
         }}
       />
     );
@@ -100,11 +110,12 @@ export default function InlineEdit({
   return (
     <span
       onClick={startEdit}
+      className="inline-edit-trigger"
       style={{
-        cursor: 'pointer',
         fontFamily: type === 'number' ? 'var(--as-font-mono)' : 'inherit',
+        fontVariantNumeric: type === 'number' ? 'tabular-nums' : undefined,
       }}
-      title="Click to edit"
+      title="Click or press Enter to edit"
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -113,7 +124,7 @@ export default function InlineEdit({
           startEdit();
         }
       }}
-      aria-label={type === 'text' ? 'Click to edit text' : 'Click to edit numeric value'}
+      aria-label={resolvedAria}
     >
       {display}
     </span>

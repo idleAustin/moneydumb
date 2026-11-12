@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { Download, Upload, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 
@@ -37,6 +37,15 @@ export default function ExcelUpload({
     errors: string[];
   } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!result) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setResult(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [result]);
 
   /* ---- Download template ---- */
   const downloadTemplate = () => {
@@ -118,7 +127,7 @@ export default function ExcelUpload({
           {importing ? (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <Loader2 size={14} strokeWidth={2.0} className="animate-spin" aria-hidden="true" focusable="false" />
-              <span>Importing…</span>
+              <span>Importing...</span>
             </span>
           ) : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -140,8 +149,18 @@ export default function ExcelUpload({
       {/* Result modal */}
       {result && (
         <div className="modal-overlay" onClick={() => setResult(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0, fontSize: '1rem', color: 'var(--as-text-primary)' }}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="excel-import-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 440 }}
+          >
+            <h3
+              id="excel-import-modal-title"
+              style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0, fontSize: '1rem', color: 'var(--as-text-primary)' }}
+            >
               {result.created > 0 ? (
                 <CheckCircle2 size={18} strokeWidth={2.0} style={{ color: 'var(--as-status-success)' }} aria-hidden="true" focusable="false" />
               ) : (
@@ -149,46 +168,61 @@ export default function ExcelUpload({
               )}
               <span>{result.created > 0 ? 'Import Complete' : 'Import Result'}</span>
             </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 16, marginTop: 16 }}>
-              <div className="stat-card" style={{ flex: 1, padding: '12px 16px' }}>
-                <div className="stat-label">Rows Found</div>
-                <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${result.errors.length > 0 ? 3 : 2}, minmax(0, 1fr))`,
+                background: 'var(--as-bg-base)',
+                border: '1px solid var(--as-border-subtle)',
+                borderRadius: 'var(--as-radius-md)',
+                marginTop: 16,
+                marginBottom: 16,
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ padding: '12px 14px', borderRight: '1px solid var(--as-border-subtle)' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--as-text-secondary)' }}>Rows Found</div>
+                <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.35rem', fontWeight: 700, color: 'var(--as-text-primary)', marginTop: 4 }}>
                   {result.total}
                 </div>
               </div>
-              <div className="stat-card stat-green" style={{ flex: 1, padding: '12px 16px' }}>
-                <div className="stat-label">Created</div>
-                <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+              <div style={{ padding: '12px 14px', borderRight: result.errors.length > 0 ? '1px solid var(--as-border-subtle)' : 'none' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--as-text-secondary)' }}>Created</div>
+                <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.35rem', fontWeight: 700, color: 'var(--as-status-success)', marginTop: 4 }}>
                   {result.created}
                 </div>
               </div>
               {result.errors.length > 0 && (
-                <div className="stat-card stat-red" style={{ flex: 1, padding: '12px 16px' }}>
-                  <div className="stat-label">Errors</div>
-                  <div className="stat-value" style={{ fontSize: '1.4rem' }}>
+                <div style={{ padding: '12px 14px' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--as-text-secondary)' }}>Errors</div>
+                  <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.35rem', fontWeight: 700, color: 'var(--as-status-error)', marginTop: 4 }}>
                     {result.errors.length}
                   </div>
                 </div>
               )}
             </div>
             {result.errors.length > 0 && (
-              <div
+              <ul
                 style={{
+                  listStyle: 'none',
                   maxHeight: 160,
                   overflowY: 'auto',
                   fontSize: '0.78rem',
-                  background: 'var(--as-bg-elevated)',
-                  border: '1px solid var(--as-border-subtle)',
+                  background: 'var(--as-bg-base)',
+                  border: '1px solid color-mix(in srgb, var(--as-status-error) 45%, transparent)',
                   borderRadius: 'var(--as-radius-md)',
-                  padding: 12,
+                  padding: '10px 14px',
                   color: 'var(--as-status-error)',
                   marginBottom: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
                 }}
               >
                 {result.errors.map((err, i) => (
-                  <div key={i}>• {err}</div>
+                  <li key={i} style={{ lineHeight: 1.4 }}>{err}</li>
                 ))}
-              </div>
+              </ul>
             )}
             <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
               <button

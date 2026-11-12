@@ -36,12 +36,14 @@ export default function ObligationDrawer({
   onSelectDebtTier,
 }: ObligationDrawerProps) {
   const [amountInput, setAmountInput] = useState('');
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [scope, setScope] = useState<'month' | 'master'>('month');
 
   useEffect(() => {
     if (obligation) {
       queueMicrotask(() => {
-        setAmountInput(String(obligation.amount));
+        setAmountInput(Number(obligation.amount || 0).toFixed(2));
+        setAmountError(null);
         setScope('month');
       });
     }
@@ -67,40 +69,25 @@ export default function ObligationDrawer({
   const safeAfter = obligation.isPaid ? safeBefore : safeBefore - obligation.amount;
 
   const handleApplyAmount = () => {
-    const parsed = parseFloat(amountInput);
-    if (!isNaN(parsed) && parsed >= 0) {
-      onSaveAmount(obligation, parsed, scope);
+    const trimmed = amountInput.trim();
+    const parsed = Number(trimmed);
+    if (!trimmed || Number.isNaN(parsed) || parsed < 0) {
+      setAmountError('Enter a valid non-negative dollar amount.');
+      return;
     }
+    setAmountError(null);
+    onSaveAmount(obligation, parsed, scope);
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(10, 10, 12, 0.72)',
-        zIndex: 230,
-        display: 'flex',
-        justifyContent: 'flex-end',
-      }}
-    >
+    <div className="tm-drawer-backdrop" onClick={onClose}>
       <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tm-obligation-drawer-title"
+        className="tm-drawer-panel"
+        style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom, 0px))' }}
         onClick={(e) => e.stopPropagation()}
-        aria-label={`Command drawer for ${obligation.name}`}
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          height: '100dvh',
-          background: 'var(--as-bg-surface)',
-          borderLeft: '1px solid var(--as-border-strong)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '18px 16px calc(32px + env(safe-area-inset-bottom, 0px))',
-          overflowY: 'auto',
-          boxShadow: '-16px 0 48px rgba(0, 0, 0, 0.75)',
-        }}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Drawer Header */}
@@ -120,15 +107,25 @@ export default function ObligationDrawer({
                   fontWeight: 700,
                   fontSize: '0.8rem',
                   color: isDebt ? 'var(--as-status-warning)' : 'var(--as-accent-primary)',
+                  flexShrink: 0,
                 }}
               >
                 {obligation.monogram}
               </div>
               <div>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--as-text-primary)', fontFamily: 'var(--as-font-heading)' }}>
+                <h2
+                  id="tm-obligation-drawer-title"
+                  style={{
+                    margin: 0,
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    color: 'var(--as-text-primary)',
+                    fontFamily: 'var(--as-font-heading)',
+                  }}
+                >
                   {obligation.name}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--as-text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                </h2>
+                <div style={{ fontSize: '0.72rem', color: 'var(--as-text-secondary)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
                   {isDebt ? (
                     <CreditCard size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                   ) : (
@@ -142,6 +139,8 @@ export default function ObligationDrawer({
               </div>
             </div>
             <button
+              type="button"
+              className="tm-touch-btn"
               onClick={onClose}
               aria-label="Close obligation command drawer"
               style={{
@@ -163,19 +162,24 @@ export default function ObligationDrawer({
           </div>
 
           {/* Primary Status & Portal Actions */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
+              type="button"
+              className="tm-touch-btn"
               onClick={() => onTogglePaid(obligation)}
+              aria-pressed={obligation.isPaid}
               aria-label={obligation.isPaid ? `Mark ${obligation.name} as unpaid` : `Mark ${obligation.name} as paid`}
               style={{
                 flex: 1,
+                minHeight: 44,
                 padding: '10px 14px',
-                borderRadius: 'var(--as-radius-md)',
+                borderRadius: 'var(--as-radius-sm)',
                 border: obligation.isPaid ? '1px solid var(--as-status-success)' : '1px solid var(--as-accent-primary)',
                 background: obligation.isPaid ? 'var(--as-status-success-bg)' : 'var(--as-accent-primary)',
                 color: obligation.isPaid ? 'var(--as-status-success)' : 'var(--as-accent-text)',
                 fontWeight: 700,
                 fontSize: '0.82rem',
+                fontVariantNumeric: 'tabular-nums',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -193,9 +197,11 @@ export default function ObligationDrawer({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Open external payment site for ${obligation.name}`}
+                className="tm-touch-btn"
                 style={{
+                  minHeight: 44,
                   padding: '10px 14px',
-                  borderRadius: 'var(--as-radius-md)',
+                  borderRadius: 'var(--as-radius-sm)',
                   border: '1px solid var(--as-border-strong)',
                   background: 'var(--as-bg-elevated)',
                   color: 'var(--as-text-primary)',
@@ -217,19 +223,19 @@ export default function ObligationDrawer({
           {isDebt && (
             <div
               style={{
-                background: 'var(--as-bg-elevated)',
+                background: 'var(--as-bg-base)',
                 border: '1px solid var(--as-border-subtle)',
                 borderRadius: 'var(--as-radius-md)',
                 padding: 12,
               }}
             >
-              <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)', marginBottom: 8, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
                 <span>Debt Payment Strategy</span>
-                <span style={{ fontFamily: 'var(--as-font-mono)' }}>
-                  Bal: {fmtFull(obligation.debtBalance || 0)} • {obligation.interestRate || 0}% APR
+                <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--as-text-secondary)' }}>
+                  Bal: {fmtFull(obligation.debtBalance || 0)} • {Number(obligation.interestRate || 0).toFixed(2)}% APR
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div className="tm-drawer-tier-grid" role="group" aria-label="Debt payment strategy tiers">
                 {[
                   { key: 'min', label: 'Minimum', val: obligation.minimumPayment || 0 },
                   { key: 'due', label: 'Due Now', val: obligation.dueImmediately || obligation.minimumPayment || 0 },
@@ -240,10 +246,14 @@ export default function ObligationDrawer({
                   return (
                     <button
                       key={t.key}
+                      type="button"
+                      className="tm-touch-btn"
                       onClick={() => {
                         onSelectDebtTier(obligation, t.key);
-                        setAmountInput(String(t.val));
+                        setAmountInput(Number(t.val || 0).toFixed(2));
+                        setAmountError(null);
                       }}
+                      aria-pressed={active}
                       aria-label={`Select ${t.label} payment tier (${fmtFull(t.val)})`}
                       style={{
                         padding: '8px 10px',
@@ -256,10 +266,11 @@ export default function ObligationDrawer({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
+                        gap: 6,
                       }}
                     >
                       <span style={{ fontSize: '0.73rem', fontWeight: 600 }}>{t.label}</span>
-                      <span style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.73rem', fontWeight: 700 }}>{fmtFull(t.val)}</span>
+                      <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.73rem', fontWeight: 700 }}>{fmtFull(t.val)}</span>
                     </button>
                   );
                 })}
@@ -270,7 +281,7 @@ export default function ObligationDrawer({
           {/* Amount Override vs Master Rule */}
           <div
             style={{
-              background: 'var(--as-bg-elevated)',
+              background: 'var(--as-bg-base)',
               border: '1px solid var(--as-border-subtle)',
               borderRadius: 'var(--as-radius-md)',
               padding: 12,
@@ -280,39 +291,64 @@ export default function ObligationDrawer({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <label
+                htmlFor="tm-drawer-amount-input"
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: 'var(--as-text-tertiary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  cursor: 'pointer',
+                }}
+              >
                 <Sliders size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                 Payment Amount
-              </span>
-              <div style={{ display: 'flex', gap: 4 }}>
+              </label>
+              <div style={{ display: 'flex', gap: 4 }} role="group" aria-label="Payment update scope">
                 <button
+                  type="button"
+                  className="tm-touch-btn"
                   onClick={() => setScope('month')}
+                  aria-pressed={scope === 'month'}
                   aria-label="Apply amount change to this month only"
                   style={{
-                    padding: '3px 8px',
-                    fontSize: '0.68rem',
+                    minHeight: 28,
+                    padding: '0 10px',
+                    fontSize: '0.7rem',
                     fontWeight: 600,
                     borderRadius: 'var(--as-radius-sm)',
                     border: scope === 'month' ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                     background: scope === 'month' ? 'var(--as-accent-muted)' : 'transparent',
-                    color: scope === 'month' ? 'var(--as-accent-primary)' : 'var(--as-text-muted)',
+                    color: scope === 'month' ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
                   }}
                 >
                   This Month Only
                 </button>
                 <button
+                  type="button"
+                  className="tm-touch-btn"
                   onClick={() => setScope('master')}
+                  aria-pressed={scope === 'master'}
                   aria-label="Apply amount change to master recurring rule"
                   style={{
-                    padding: '3px 8px',
-                    fontSize: '0.68rem',
+                    minHeight: 28,
+                    padding: '0 10px',
+                    fontSize: '0.7rem',
                     fontWeight: 600,
                     borderRadius: 'var(--as-radius-sm)',
                     border: scope === 'master' ? '1px solid var(--as-status-info)' : '1px solid var(--as-border-subtle)',
                     background: scope === 'master' ? 'var(--as-status-info-bg)' : 'transparent',
-                    color: scope === 'master' ? 'var(--as-status-info)' : 'var(--as-text-muted)',
+                    color: scope === 'master' ? 'var(--as-status-info)' : 'var(--as-text-secondary)',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
                   }}
                 >
                   Master Rule
@@ -321,32 +357,53 @@ export default function ObligationDrawer({
             </div>
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="number"
-                step="0.01"
-                value={amountInput}
-                onChange={(e) => setAmountInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleApplyAmount()}
-                style={{
-                  flex: 1,
-                  padding: '8px 10px',
-                  background: 'var(--as-bg-base)',
-                  border: '1px solid var(--as-border-strong)',
-                  borderRadius: 'var(--as-radius-md)',
-                  color: 'var(--as-text-primary)',
-                  fontFamily: 'var(--as-font-mono)',
-                  fontSize: '1rem',
-                  fontWeight: 700,
-                }}
-              />
+              <div className="input-unit-wrap" style={{ flex: 1 }}>
+                <span className="input-unit-left" aria-hidden="true">$</span>
+                <input
+                  id="tm-drawer-amount-input"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  className="has-unit-left"
+                  value={amountInput}
+                  aria-invalid={Boolean(amountError)}
+                  aria-describedby={amountError ? 'tm-drawer-amount-error' : undefined}
+                  onChange={(e) => {
+                    setAmountInput(e.target.value);
+                    if (amountError) setAmountError(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleApplyAmount();
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    minHeight: 44,
+                    padding: '8px 10px 8px 26px',
+                    background: 'var(--as-bg-surface)',
+                    border: amountError ? '1px solid var(--as-status-error)' : '1px solid var(--as-border-strong)',
+                    borderRadius: 'var(--as-radius-sm)',
+                    color: 'var(--as-text-primary)',
+                    fontFamily: 'var(--as-font-mono)',
+                    fontVariantNumeric: 'tabular-nums',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                  }}
+                />
+              </div>
               <button
+                type="button"
+                className="tm-touch-btn"
                 onClick={handleApplyAmount}
                 aria-label="Save obligation amount"
                 style={{
-                  padding: '8px 14px',
-                  borderRadius: 'var(--as-radius-md)',
+                  minHeight: 44,
+                  padding: '8px 16px',
+                  borderRadius: 'var(--as-radius-sm)',
                   border: '1px solid var(--as-border-strong)',
-                  background: 'var(--as-bg-overlay)',
+                  background: 'var(--as-bg-elevated)',
                   color: 'var(--as-text-primary)',
                   fontSize: '0.76rem',
                   fontWeight: 600,
@@ -356,12 +413,22 @@ export default function ObligationDrawer({
                 Apply
               </button>
             </div>
+
+            {amountError && (
+              <p
+                id="tm-drawer-amount-error"
+                role="alert"
+                style={{ margin: 0, fontSize: '0.74rem', color: 'var(--as-status-error)', fontWeight: 500 }}
+              >
+                {amountError}
+              </p>
+            )}
           </div>
 
           {/* Bank Account Routing & Safe Balance Preview */}
           <div
             style={{
-              background: 'var(--as-bg-elevated)',
+              background: 'var(--as-bg-base)',
               border: '1px solid var(--as-border-subtle)',
               borderRadius: 'var(--as-radius-md)',
               padding: 12,
@@ -370,7 +437,7 @@ export default function ObligationDrawer({
               gap: 8,
             }}
           >
-            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)', display: 'flex', alignItems: 'center', gap: 5 }}>
               <Landmark size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               Pay From Bank Account
             </div>
@@ -379,14 +446,16 @@ export default function ObligationDrawer({
               <div
                 style={{
                   padding: '8px 10px',
-                  background: 'var(--as-bg-base)',
+                  background: 'var(--as-bg-surface)',
                   border: '1px solid var(--as-border-subtle)',
                   borderRadius: 'var(--as-radius-sm)',
                   fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
                   fontSize: '0.74rem',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  gap: 8,
                 }}
               >
                 <span style={{ color: 'var(--as-text-secondary)' }}>{assignedAcct.name} Safe:</span>
@@ -406,7 +475,10 @@ export default function ObligationDrawer({
                 return (
                   <button
                     key={a.id}
+                    type="button"
+                    className="tm-touch-btn"
                     onClick={() => onSelectAccount(obligation, a.id)}
+                    aria-pressed={isSelected}
                     aria-label={`Route ${obligation.name} to ${a.name}`}
                     style={{
                       padding: '8px 10px',
@@ -422,11 +494,11 @@ export default function ObligationDrawer({
                   >
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>{a.name}</div>
-                      <div style={{ fontSize: '0.65rem', color: 'var(--as-text-muted)', textTransform: 'capitalize' }}>
+                      <div style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)', textTransform: 'capitalize', fontVariantNumeric: 'tabular-nums' }}>
                         {a.account_type} • {a.linkedCount} bills linked
                       </div>
                     </div>
-                    <div style={{ fontFamily: 'var(--as-font-mono)', fontSize: '0.76rem', fontWeight: 700, color: a.currentSafeBalance >= 0 ? 'var(--as-status-success)' : 'var(--as-status-error)' }}>
+                    <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.76rem', fontWeight: 700, color: Math.abs(a.currentSafeBalance) < 0.005 ? 'var(--as-text-tertiary)' : a.currentSafeBalance > 0 ? 'var(--as-status-success)' : 'var(--as-status-error)' }}>
                       {fmtFull(a.currentSafeBalance)}
                     </div>
                   </button>

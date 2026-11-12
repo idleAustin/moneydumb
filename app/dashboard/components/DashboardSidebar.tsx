@@ -146,6 +146,8 @@ export default function DashboardSidebar({
           className="mobile-menu-btn"
           onClick={() => onSetMobileMenuOpen(!mobileMenuOpen)}
           aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="dashboard-sidebar"
         >
           {mobileMenuOpen ? (
             <X size={20} strokeWidth={2.0} aria-hidden="true" focusable="false" />
@@ -175,6 +177,8 @@ export default function DashboardSidebar({
 
       {/* Sidebar Navigation */}
       <aside
+        id="dashboard-sidebar"
+        aria-label="Workspace navigation"
         className={`sidebar ${isCollapsed ? 'sidebar-collapsed' : ''} ${mobileMenuOpen ? 'sidebar-mobile-open' : ''}`}
       >
         <div className="sidebar-header">
@@ -247,10 +251,10 @@ export default function DashboardSidebar({
               </span>
               <span
                 style={{
-                  fontSize: '0.65rem',
-                  color: 'var(--as-text-muted)',
+                  fontSize: '0.6875rem',
+                  color: 'var(--as-text-tertiary)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                 }}
               >
                 Active Identity
@@ -259,18 +263,22 @@ export default function DashboardSidebar({
           )}
         </div>
 
-        <nav>
+        <nav aria-label="Primary routes">
           {navGroups.map((group) => {
             const isManager = group.isCollapsible;
             const expanded = isManager ? manageExpanded : true;
+            const groupContentId = `nav-group-${group.label.toLowerCase()}`;
             return (
               <div key={group.label} className="nav-group">
-                <div
-                  className={`nav-group-label ${isManager ? 'collapsible' : ''}`}
-                  onClick={() => isManager && setManageExpanded(!manageExpanded)}
-                >
-                  <span style={{ flex: 1 }}>{group.label}</span>
-                  {isManager && (
+                {isManager ? (
+                  <button
+                    type="button"
+                    className="nav-group-label collapsible"
+                    aria-expanded={manageExpanded}
+                    aria-controls={groupContentId}
+                    onClick={() => setManageExpanded(!manageExpanded)}
+                  >
+                    <span style={{ flex: 1 }}>{group.label}</span>
                     <span
                       className="chevron"
                       style={{
@@ -284,9 +292,13 @@ export default function DashboardSidebar({
                     >
                       <ChevronDown size={14} strokeWidth={2.0} focusable="false" />
                     </span>
-                  )}
-                </div>
-                <div className={`nav-group-content ${expanded ? 'expanded' : ''}`}>
+                  </button>
+                ) : (
+                  <div className="nav-group-label">
+                    <span style={{ flex: 1 }}>{group.label}</span>
+                  </div>
+                )}
+                <div id={groupContentId} className={`nav-group-content ${expanded ? 'expanded' : ''}`}>
                   <div className="nav-group-inner">
                     {group.items.map((item) => {
                       const isActive = pathname === item.to;
@@ -296,6 +308,7 @@ export default function DashboardSidebar({
                           key={item.to}
                           href={item.to}
                           className={isActive ? 'active' : ''}
+                          aria-current={isActive ? 'page' : undefined}
                           title={isCollapsed ? item.label : undefined}
                           aria-label={isCollapsed ? item.label : undefined}
                         >
@@ -315,29 +328,18 @@ export default function DashboardSidebar({
 
         {/* Sidebar Footer with Logout & Shutdown */}
         <div className="sidebar-footer">
-          {!isCollapsed && (
-            <button
-              type="button"
-              className="shutdown-btn"
-              onClick={onLogout}
-              aria-label="Log out"
-              style={{
-                color: 'var(--as-text-muted)',
-                background: 'transparent',
-                border: '1px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-                padding: '10px 16px',
-                borderRadius: 'var(--as-radius-md)',
-              }}
-            >
-              <span className="nav-icon" style={{ color: 'var(--as-text-muted)' }} aria-hidden="true">
-                <LogOut size={18} strokeWidth={2.0} focusable="false" />
-              </span>
-              <span className="nav-label">Log Out</span>
-            </button>
-          )}
+          <button
+            type="button"
+            className="sidebar-action-btn"
+            onClick={onLogout}
+            aria-label="Log out"
+            title={isCollapsed ? 'Log out' : undefined}
+          >
+            <span className="nav-icon" aria-hidden="true">
+              <LogOut size={18} strokeWidth={2.0} focusable="false" />
+            </span>
+            {!isCollapsed && <span className="nav-label">Log Out</span>}
+          </button>
           <button
             type="button"
             className="shutdown-btn"
@@ -356,7 +358,13 @@ export default function DashboardSidebar({
       {/* Shutdown Confirmation Modal */}
       {showShutdownModal && (
         <div className="modal-overlay" onClick={() => onSetShowShutdownModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shutdown-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header">
               <AlertTriangle
                 size={22}
@@ -365,17 +373,17 @@ export default function DashboardSidebar({
                 aria-hidden="true"
                 focusable="false"
               />
-              <h3>Shutdown Application?</h3>
+              <h3 id="shutdown-modal-title">Shut Down Application?</h3>
             </div>
             <p
               style={{
                 marginTop: 8,
                 color: 'var(--as-text-secondary)',
                 fontSize: '0.85rem',
-                lineHeight: '1.5',
+                lineHeight: '1.55',
               }}
             >
-              This will safely shut down the database engine and cleanly terminate your local session parameters.
+              This cleanly commits local database transactions and terminates the server process.
             </p>
             <div className="modal-actions">
               <button
@@ -388,16 +396,11 @@ export default function DashboardSidebar({
               </button>
               <button
                 type="button"
-                className="btn btn-danger"
+                className="btn btn-danger-solid"
                 onClick={onConfirmShutdown}
                 aria-label="Confirm application shutdown"
-                style={{
-                  background: 'var(--as-status-error)',
-                  borderColor: 'var(--as-status-error)',
-                  color: '#fff',
-                }}
               >
-                Shut Down
+                Shut Down Server
               </button>
             </div>
           </div>

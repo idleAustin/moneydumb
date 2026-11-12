@@ -59,17 +59,34 @@ export default function TableHeader({
     );
   };
 
+  const isRightAligned = style?.textAlign === 'right';
+
   return (
     <th
       scope="col"
+      tabIndex={0}
       onClick={() => onClick(sortKey)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick(sortKey);
+        }
+      }}
       className={`sortable ${isSorted ? 'active-sort' : ''} ${className}`}
       style={{ cursor: 'pointer', userSelect: 'none', ...style }}
       aria-sort={isSorted ? (activeDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: isRightAligned ? 'flex-end' : 'flex-start',
+          gap: '6px',
+        }}
+      >
+        {isRightAligned && renderSortIcon()}
         <span>{label}</span>
-        {renderSortIcon()}
+        {!isRightAligned && renderSortIcon()}
       </span>
     </th>
   );

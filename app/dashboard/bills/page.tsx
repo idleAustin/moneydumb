@@ -1,168 +1,284 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-// We use '@' to find the file from the project root, which fixes folder depth issues
-import { logoutUser, getDashboardStats, type UpcomingBillItem } from '@/app/lib/actions'; 
 import Link from 'next/link';
-import { LogOut } from 'lucide-react';
+import {
+  Receipt,
+  Landmark,
+  ClipboardCheck,
+  Tags,
+  Clock,
+  AlertCircle,
+  Calendar,
+  CheckCircle2,
+  Plus,
+} from 'lucide-react';
+import { getAuthUserId } from '@/app/lib/auth';
+import { getDashboardStats, type UpcomingBillItem } from '@/app/lib/actions';
 
-export default async function Dashboard() {
-  const cookieStore = await cookies();
-  const sessionId = cookieStore.get('session');
+const fmtCurrency = (n: number) => {
+  const val = Object.is(n, -0) || Math.abs(n) < 0.00001 ? 0 : n;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(val);
+};
 
-  if (!sessionId) {
-    redirect('/'); 
+export default async function BillsPage() {
+  const userId = await getAuthUserId();
+  if (!userId) {
+    redirect('/');
   }
 
   const stats = await getDashboardStats();
+  const upcomingCount = stats.upcomingBills.filter((b) => b.daysUntil >= 0).length;
 
   return (
-    <div className="min-h-screen bg-retro-black text-retro-green font-mono p-4 md:p-8">
-      {/* Top Navigation Bar */}
-      <div className="flex justify-between items-center border-b-2 border-retro-dim pb-4 mb-8">
+    <div className="fade-in">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold tracking-tighter drop-shadow-[0_0_8px_rgba(51,255,0,0.5)]">
-            SPENT_SYSTEM
-          </h1>
-          <p className="text-xs text-retro-dim mt-1">
-            USER_ID: {sessionId.value.slice(0, 8)}... // ACCESS_LEVEL: ADMIN
-          </p>
+          <h2>
+            <Receipt
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Bills &amp; Obligations</span>
+          </h2>
+          <p>Monitor recurring monthly bills, pending obligations, and post-bill safe liquidity.</p>
         </div>
-        
-        <form action={logoutUser}>
-          <button
-            type="submit"
-            className="text-xs border border-retro-red text-retro-red px-4 py-2 hover:bg-retro-red hover:text-retro-black transition-colors uppercase tracking-widest cursor-pointer inline-flex items-center gap-1"
-            aria-label="Terminate session"
+
+        <div className="page-header-actions">
+          <Link href="/dashboard/audit" className="btn btn-secondary">
+            <ClipboardCheck size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Daily Audit</span>
+          </Link>
+          <Link href="/dashboard/banks" className="btn btn-secondary">
+            <Landmark size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Bank Liquidity</span>
+          </Link>
+          {stats.upcomingBills.length > 0 && (
+            <Link href="/dashboard/expenses" className="btn btn-primary">
+              <span>Manage Expenses</span>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className="card-grid-3 section">
+        <div
+          className={`stat-card ${
+            stats.totalAssets < -0.005
+              ? 'stat-red'
+              : Math.abs(stats.totalAssets) < 0.005
+              ? 'stat-zero'
+              : ''
+          }`}
+        >
+          <div className="stat-label">Total Assets</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
           >
-            <LogOut size={12} aria-hidden="true" focusable="false" /> Terminate Session
-          </button>
-        </form>
+            {fmtCurrency(stats.totalAssets)}
+          </div>
+          <div
+            className="stat-sub"
+            style={{
+              color: 'var(--as-text-secondary)',
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.bankCount} {stats.bankCount === 1 ? 'account' : 'accounts'}
+          </div>
+        </div>
+
+        <div className={`stat-card ${stats.pendingOut > 0.005 ? 'stat-amber' : 'stat-zero'}`}>
+          <div className="stat-label">Pending Bills</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {stats.pendingOut > 0.005 ? fmtCurrency(-stats.pendingOut) : fmtCurrency(0)}
+          </div>
+          <div
+            className="stat-sub"
+            style={{
+              color: 'var(--as-text-secondary)',
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {upcomingCount} remaining this month
+          </div>
+        </div>
+
+        <div
+          className={`stat-card ${
+            stats.safeBalance < -0.005
+              ? 'stat-red'
+              : stats.safeBalance > 0.005
+              ? 'stat-green'
+              : 'stat-zero'
+          }`}
+        >
+          <div className="stat-label">Safe to Spend</div>
+          <div
+            className="stat-value"
+            style={{
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {fmtCurrency(stats.safeBalance)}
+          </div>
+          <div className="stat-sub" style={{ color: 'var(--as-text-secondary)' }}>
+            Assets minus pending bills
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        
-        {/* Module 1: Bank Accounts & Liquidity */}
-        <div className="border border-retro-dim bg-retro-gray/5 p-6 hover:border-retro-green transition-colors group h-full flex flex-col justify-between">
-          <Link href="/dashboard/banks" className="block cursor-pointer">
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold group-hover:drop-shadow-[0_0_5px_rgba(51,255,0,0.5)]">
-                BANK_ACCOUNTS
-              </h2>
-              <span className="text-xs bg-retro-dim text-retro-black px-2 py-1">
-                {stats.bankCount.toString().padStart(2, '0')}
-              </span>
-            </div>
-            
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between text-retro-dim">
-                <span>TOTAL_ASSETS</span>
-                <span>${stats.totalAssets.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-              
-              <div className="flex justify-between text-retro-red">
-                <span>LESS_PENDING</span>
-                <span>-${stats.pendingOut.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="flex justify-between border-t border-retro-dim pt-2 mt-2">
-                <span className="text-retro-green font-bold">SAFE_TO_SPEND</span>
-                <span className="text-retro-green font-bold text-lg drop-shadow-[0_0_5px_rgba(51,255,0,0.5)]">
-                  ${stats.safeBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              </div>
-            </div>
-          </Link>
-          
-          <div className="mt-6 flex justify-between items-center gap-2">
-            <Link href="/dashboard/banks" className="text-xs text-retro-gray hover:text-retro-green transition-colors">
-              &gt;&gt; MANAGE
-            </Link>
-            <Link href="/dashboard/audit" className="flex-1 text-center bg-retro-dim/20 border border-retro-dim text-retro-green py-2 text-xs uppercase hover:bg-retro-green hover:text-retro-black transition-colors font-bold">
-              START DAILY AUDIT
+      <div className="card section">
+        <div className="card-header">
+          <h3>Recurring Bill Schedule</h3>
+          <div className="card-header-actions">
+            <Link href="/dashboard/types" className="btn btn-secondary btn-small">
+              <Tags size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Expense Categories</span>
             </Link>
           </div>
         </div>
 
-        {/* Module 2: Expenses Log Link */}
-        <div className="border border-retro-dim bg-retro-gray/5 p-6 hover:border-retro-green transition-colors group h-full relative flex flex-col justify-between">
-          <div>
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold">
-                EXPENSE_LOG
-              </h2>
-              <Link href="/dashboard/types" className="text-xs border border-retro-dim px-2 py-1 hover:bg-retro-green hover:text-retro-black transition-colors z-20 relative cursor-pointer">
-                CONFIG_TYPES
-              </Link>
+        {stats.upcomingBills.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <CheckCircle2
+                size={32}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-status-success)' }}
+              />
             </div>
-            <p className="text-sm text-retro-dim mb-4">
-              Track outgoing funds, categorize transactions, and monitor burn rate.
+            <h3>No recurring bills scheduled</h3>
+            <p>
+              Add recurring monthly obligations in Expenses to track upcoming due dates against your
+              account balances.
             </p>
-          </div>
-          
-          <Link href="/dashboard/expenses" className="mt-6 text-xs text-retro-gray hover:text-retro-green transition-colors cursor-pointer block">
-            &gt;&gt; INPUT_NEW_DATA
-          </Link>
-        </div>
-
-        {/* Module 3: Pending Queue (UPDATED) */}
-        <div className="border border-retro-dim bg-retro-gray/5 p-6 hover:border-retro-green transition-colors group h-full relative flex flex-col">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-bold group-hover:drop-shadow-[0_0_5px_rgba(51,255,0,0.5)]">
-              PENDING_QUEUE
-            </h2>
-            <Link href="/dashboard/expenses" className="text-xs border border-retro-dim px-2 py-1 hover:bg-retro-green hover:text-retro-black transition-colors z-20 relative cursor-pointer">
-              MANAGE_LIST
+            <Link href="/dashboard/expenses" className="btn btn-primary">
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Add Recurring Bill</span>
             </Link>
           </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Bill</th>
+                  <th scope="col">Due Timing</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.upcomingBills.map((exp: UpcomingBillItem) => {
+                  const isPast = exp.daysUntil < 0;
+                  const isSoon = exp.daysUntil >= 0 && exp.daysUntil <= 7;
+                  const timingLabel =
+                    exp.daysUntil < 0
+                      ? `${Math.abs(exp.daysUntil)}d past due day`
+                      : exp.daysUntil === 0
+                      ? 'Due today'
+                      : `In ${exp.daysUntil} ${exp.daysUntil === 1 ? 'day' : 'days'}`;
 
-          <div className="flex-1 overflow-y-auto space-y-3">
-            {stats.upcomingBills.length > 0 ? (
-              stats.upcomingBills.map((exp: UpcomingBillItem) => (
-                <div key={exp.id} className="flex justify-between items-center text-sm border-b border-retro-dim/30 pb-1">
-                  
-                  {/* Days Indicator */}
-                  <div className="flex flex-col items-center min-w-[3rem]">
-                    <span className={`text-lg font-bold ${exp.daysUntil < 0 ? 'text-retro-red' : exp.daysUntil <= 3 ? 'text-retro-amber' : 'text-retro-green'}`}>
-                      {exp.daysUntil < 0 ? 'OD' : exp.daysUntil}
-                    </span>
-                    <span className="text-[9px] text-retro-dim uppercase">
-                      {exp.daysUntil < 0 ? 'LATE' : 'DAYS'}
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  <div className="flex-1 px-3 overflow-hidden">
-                    <div className="font-bold uppercase truncate">{exp.name}</div>
-                    <div className="text-[10px] text-retro-dim flex items-center gap-2">
-                       {exp.status === 'not-paid' ? 'NOT_PAID' : 'PENDING'}
-                    </div> 
-                  </div>
-
-                  {/* Amount */}
-                  <div className="text-right">
-                    <div className="text-retro-amber font-mono">
-                      ${exp.amount.toFixed(0)}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-retro-dim text-xs italic text-center mt-8">
-                ALL TRANSACTIONS CLEARED.
-              </div>
-            )}
+                  return (
+                    <tr key={exp.id}>
+                      <td style={{ fontWeight: 600 }}>{exp.name}</td>
+                      <td
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                          fontSize: '0.8125rem',
+                          color: isPast
+                            ? 'var(--as-status-error)'
+                            : isSoon
+                            ? 'var(--as-status-warning)'
+                            : 'var(--as-text-secondary)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {timingLabel}
+                      </td>
+                      <td>
+                        {isPast ? (
+                          <span
+                            className="badge badge-red"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <AlertCircle
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Past Due Day</span>
+                          </span>
+                        ) : isSoon ? (
+                          <span
+                            className="badge badge-amber"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Clock
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Due Soon</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-blue"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Calendar
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Scheduled</span>
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        className="amount"
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {fmtCurrency(Number(exp.amount))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          <Link href="/dashboard/expenses" className="mt-4 text-xs text-retro-gray hover:text-retro-green transition-colors cursor-pointer block text-center border-t border-retro-dim pt-2">
-            &gt;&gt; VIEW PENDING LOG
-          </Link>
-        </div>
-
-      </div>
-
-      {/* Footer */}
-      <div className="fixed bottom-4 right-4 text-xs text-retro-dim opacity-50">
-        SYSTEM_READY // WAITING_FOR_INPUT
+        )}
       </div>
     </div>
   );

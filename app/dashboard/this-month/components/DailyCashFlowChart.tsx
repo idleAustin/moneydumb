@@ -37,13 +37,14 @@ const RichDayTooltip = ({ active, payload }: any) => {
         padding: '10px 12px',
         fontSize: '0.73rem',
         fontFamily: 'var(--as-font-mono)',
+        fontVariantNumeric: 'tabular-nums',
         minWidth: 230,
-        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.85)',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.7)',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, paddingBottom: 4, borderBottom: '1px solid var(--as-border-subtle)', fontFamily: 'var(--as-font-body)' }}>
         <span style={{ fontWeight: 700, color: 'var(--as-text-primary)' }}>Day {row.day} ({row.label})</span>
-        <span style={{ fontFamily: 'var(--as-font-mono)', fontWeight: 700, color: 'var(--as-accent-primary)' }}>
+        <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontWeight: 700, color: row.balance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
           Bal: {fmtFull(row.balance)}
         </span>
       </div>
@@ -64,7 +65,7 @@ const RichDayTooltip = ({ active, payload }: any) => {
       {row.events && row.events.length > 0 ? (
         <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--as-border-subtle)', display: 'flex', flexDirection: 'column', gap: 3 }}>
           {row.events.slice(0, 6).map((ev: any, idx: number) => (
-            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.68rem' }}>
+            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.7rem' }}>
               <span style={{ color: 'var(--as-text-secondary)', fontFamily: 'var(--as-font-body)' }}>{ev.name}</span>
               <span style={{ color: ev.kind === 'in' ? 'var(--as-status-success)' : 'var(--as-status-warning)', fontWeight: 600 }}>
                 {ev.kind === 'in' ? '+' : '−'}{fmtFull(ev.amount)}
@@ -72,13 +73,13 @@ const RichDayTooltip = ({ active, payload }: any) => {
             </div>
           ))}
           {row.events.length > 6 && (
-            <div style={{ fontSize: '0.64rem', color: 'var(--as-text-muted)' }}>
+            <div style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)' }}>
               +{row.events.length - 6} more items on Day {row.day}
             </div>
           )}
         </div>
       ) : (
-        <div style={{ fontSize: '0.66rem', color: 'var(--as-text-muted)', fontFamily: 'var(--as-font-body)' }}>
+        <div style={{ fontSize: '0.7rem', color: 'var(--as-text-tertiary)', fontFamily: 'var(--as-font-body)' }}>
           No scheduled deposits or bills on Day {row.day}
         </div>
       )}
@@ -264,9 +265,9 @@ export function DailyCashFlowChart({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Account Scope Filter Pills + 4 Trajectory KPIs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} role="group" aria-label="Cash flow curve account scope">
           <Landmark size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
-          <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--as-text-muted)' }}>
+          <span style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>
             Curve Scope:
           </span>
           {[
@@ -278,17 +279,23 @@ export function DailyCashFlowChart({
             return (
               <button
                 key={scope.id}
+                type="button"
+                className="tm-touch-btn"
                 onClick={() => setAccountScope(scope.id)}
+                aria-pressed={isActive}
                 aria-label={`Filter cash flow trajectory by ${scope.label}`}
                 style={{
-                  padding: '3px 9px',
+                  minHeight: 28,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-pill)',
                   border: isActive ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                   background: isActive ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
                   color: isActive ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
-                  fontSize: '0.68rem',
+                  fontSize: '0.72rem',
                   fontWeight: isActive ? 700 : 600,
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 {scope.label}
@@ -298,21 +305,21 @@ export function DailyCashFlowChart({
         </div>
 
         {/* 4 Compact Trajectory Callout Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontFamily: 'var(--as-font-mono)', fontSize: '0.7rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem' }}>
           <span style={{ color: 'var(--as-text-secondary)' }}>
             Open: <strong>{fmtFull(scopedStartBal)}</strong>
           </span>
-          <span>•</span>
+          <span style={{ color: 'var(--as-text-tertiary)' }}>•</span>
           <span style={{ color: minBalDay.balance < 500 ? 'var(--as-status-error)' : 'var(--as-status-warning)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <TrendingDown size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             Lowest Day {minBalDay.day}: <strong>{fmtFull(minBalDay.balance)}</strong>
           </span>
-          <span>•</span>
+          <span style={{ color: 'var(--as-text-tertiary)' }}>•</span>
           <span style={{ color: 'var(--as-status-error)' }}>
             Peak Drop Day {maxOutDay.day}: <strong>−{fmtFull(maxOutDay.dailyOut)}</strong> ({maxOutDay.count} items)
           </span>
-          <span>•</span>
-          <span style={{ color: 'var(--as-accent-primary)' }}>
+          <span style={{ color: 'var(--as-text-tertiary)' }}>•</span>
+          <span style={{ color: scopedEndBal >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
             Day {chartData.length} End: <strong>{fmtFull(scopedEndBal)}</strong>
           </span>
         </div>
@@ -320,23 +327,28 @@ export function DailyCashFlowChart({
 
       {/* LOCKED-IN OPTION D: Compact Zoomed Curve + 31-Day Interactive Cash-Burn Heatmap Strip */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ width: '100%', height: 170 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: '100%', minWidth: 0, height: 175 }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart
               data={chartData}
-              margin={{ top: 6, right: 12, left: 8, bottom: 0 }}
+              margin={{ top: 6, right: 12, left: 8, bottom: 2 }}
               onClick={(state: any) => {
                 if (state?.activeLabel) setSelectedDay(Number(state.activeLabel));
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="var(--as-border-subtle)" />
-              <XAxis dataKey="day" stroke="var(--as-text-muted)" tick={{ fill: 'var(--as-text-muted)', fontSize: 9, fontFamily: 'var(--as-font-mono)' }} tickLine={false} />
+              <XAxis
+                dataKey="day"
+                stroke="var(--as-border-strong)"
+                tick={{ fill: 'var(--as-text-tertiary)', fontSize: 11, fontFamily: 'var(--as-font-mono)' }}
+                tickLine={false}
+              />
               <YAxis
                 domain={[(dataMin: number) => Math.floor(dataMin - 300), (dataMax: number) => Math.ceil(dataMax + 300)]}
-                stroke="var(--as-text-muted)"
-                tick={{ fill: 'var(--as-text-muted)', fontSize: 9, fontFamily: 'var(--as-font-mono)' }}
+                stroke="var(--as-border-strong)"
+                tick={{ fill: 'var(--as-text-tertiary)', fontSize: 11, fontFamily: 'var(--as-font-mono)' }}
                 tickFormatter={(v) => fmt(v)}
-                width={54}
+                width={62}
               />
               <RechartsTooltip content={<RichDayTooltip />} />
               <ReferenceLine y={minBalDay.balance} stroke="var(--as-status-error)" strokeDasharray="4 4" opacity={0.65} />
@@ -354,7 +366,7 @@ export function DailyCashFlowChart({
         </div>
 
         {/* 31-Day Clickable Cash-Burn Tiles */}
-        <div className="tm-heatmap-grid">
+        <div className="tm-heatmap-grid" role="group" aria-label="Daily cash flow calendar tiles">
           {chartData.map((row) => {
             const hasIn = row.dailyIn > 0;
             const hasOut = row.dailyOut > 0;
@@ -362,9 +374,12 @@ export function DailyCashFlowChart({
             return (
               <button
                 key={row.day}
+                type="button"
                 onClick={() => setSelectedDay(row.day)}
+                aria-pressed={isSelected}
                 aria-label={`Inspect Day ${row.day} cash flow events`}
                 style={{
+                  minHeight: 42,
                   padding: '5px 6px',
                   borderRadius: 'var(--as-radius-sm)',
                   border: isSelected
@@ -381,14 +396,18 @@ export function DailyCashFlowChart({
                     : 'var(--as-bg-base)',
                   cursor: 'pointer',
                   textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
                   fontFamily: 'var(--as-font-mono)',
+                  fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--as-text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: isSelected ? 'var(--as-text-primary)' : 'var(--as-text-secondary)' }}>
                   <span>D{row.day}</span>
                   {row.events.length > 0 && <span>{row.events.length}x</span>}
                 </div>
-                <div style={{ fontSize: '0.66rem', fontWeight: 700, color: hasIn ? 'var(--as-status-success)' : hasOut ? 'var(--as-status-error)' : 'var(--as-text-muted)' }}>
+                <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: hasIn ? 'var(--as-status-success)' : hasOut ? 'var(--as-status-error)' : 'var(--as-text-tertiary)' }}>
                   {hasIn ? `+${fmt(row.dailyIn)}` : hasOut ? `−${fmt(row.dailyOut)}` : '—'}
                 </div>
               </button>
@@ -401,7 +420,7 @@ export function DailyCashFlowChart({
       {inspectedRow && (
         <div
           style={{
-            background: 'var(--as-bg-elevated)',
+            background: 'var(--as-bg-base)',
             border: '1px solid var(--as-border-subtle)',
             borderRadius: 'var(--as-radius-md)',
             padding: '8px 12px',
@@ -412,19 +431,19 @@ export function DailyCashFlowChart({
             gap: 8,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontVariantNumeric: 'tabular-nums' }}>
             <Calendar size={13} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
-            <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--as-text-primary)' }}>
               Day {inspectedRow.day} Activity ({inspectedRow.events.length} scheduled items • Ending Bal: {fmtFull(inspectedRow.balance)})
             </span>
-            <span style={{ fontSize: '0.66rem', color: 'var(--as-text-muted)' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--as-text-tertiary)' }}>
               • Click any day tile or point on the curve to inspect
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {inspectedRow.events.length === 0 ? (
-              <span style={{ fontSize: '0.7rem', color: 'var(--as-text-muted)' }}>No bills or deposits scheduled on Day {inspectedRow.day}</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--as-text-secondary)' }}>No bills or deposits scheduled on Day {inspectedRow.day}</span>
             ) : (
               inspectedRow.events.map((ev: any, i: number) => (
                 <span
@@ -433,20 +452,21 @@ export function DailyCashFlowChart({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
-                    padding: '2px 8px',
+                    padding: '3px 8px',
                     borderRadius: 'var(--as-radius-pill)',
                     background: 'var(--as-bg-surface)',
                     border: '1px solid var(--as-border-subtle)',
-                    fontSize: '0.68rem',
+                    fontSize: '0.7rem',
                     fontFamily: 'var(--as-font-mono)',
+                    fontVariantNumeric: 'tabular-nums',
                   }}
                 >
                   {ev.kind === 'in' ? (
-                    <ArrowDownLeft size={10} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-success)' }} />
+                    <ArrowDownLeft size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-success)' }} />
                   ) : (
-                    <ArrowUpRight size={10} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-error)' }} />
+                    <ArrowUpRight size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-status-error)' }} />
                   )}
-                  <span style={{ fontFamily: 'var(--as-font-body)', fontWeight: 600 }}>{ev.name}</span>
+                  <span style={{ fontFamily: 'var(--as-font-body)', fontWeight: 600, color: 'var(--as-text-primary)' }}>{ev.name}</span>
                   <span style={{ color: ev.kind === 'in' ? 'var(--as-status-success)' : 'var(--as-status-warning)', fontWeight: 700 }}>
                     {ev.kind === 'in' ? '+' : '−'}{fmtFull(ev.amount)}
                   </span>
