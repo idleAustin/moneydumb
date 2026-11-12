@@ -85,9 +85,9 @@ export default function TopBarOptions({ state, metrics }: TopBarOptionsProps) {
           </div>
 
           <div className="tm-top-burn-legend">
-            <span style={{ color: 'var(--as-status-success)' }}>Cleared: {fmtFull(totalPaidObligations)}</span>
-            <span style={{ color: 'var(--as-status-warning)' }}>Due Next 7d: {fmtFull(urgentAmount)} ({urgentCount})</span>
-            <span style={{ color: 'var(--as-text-secondary)' }}>Later: {fmtFull(laterAmount)}</span>
+            <span style={{ color: totalPaidObligations > 0.005 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)' }}>Cleared: {fmtFull(totalPaidObligations)}</span>
+            <span style={{ color: urgentAmount > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>Due Next 7d: {fmtFull(urgentAmount)} ({urgentCount})</span>
+            <span style={{ color: laterAmount > 0.005 ? 'var(--as-text-secondary)' : 'var(--as-text-tertiary)' }}>Later: {fmtFull(laterAmount)}</span>
           </div>
         </div>
 
@@ -97,8 +97,8 @@ export default function TopBarOptions({ state, metrics }: TopBarOptionsProps) {
             <Clock size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             Remaining To Pay
           </div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.18rem', fontWeight: 700, color: 'var(--as-status-error)' }}>
-            −{fmtFull(totalRemainingObligations)}
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.18rem', fontWeight: 700, color: totalRemainingObligations > 0.005 ? 'var(--as-status-error)' : 'var(--as-text-tertiary)' }}>
+            {totalRemainingObligations > 0.005 ? `−${fmtFull(totalRemainingObligations)}` : fmtFull(0)}
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--as-text-tertiary)', marginTop: 2, fontVariantNumeric: 'tabular-nums' }}>
             {dueObligationCount} unpaid obligations left
@@ -111,7 +111,7 @@ export default function TopBarOptions({ state, metrics }: TopBarOptionsProps) {
             <Briefcase size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             Current Safe Cash
           </div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.18rem', fontWeight: 700, color: currentLiquidSafe >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.18rem', fontWeight: 700, color: Math.abs(currentLiquidSafe) < 0.005 ? 'var(--as-text-tertiary)' : currentLiquidSafe > 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
             {fmtFull(currentLiquidSafe)}
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--as-text-tertiary)', marginTop: 2, fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}>
@@ -132,21 +132,22 @@ export default function TopBarOptions({ state, metrics }: TopBarOptionsProps) {
               background: 'transparent',
               border: 'none',
               borderRadius: 'var(--as-radius-sm)',
-              padding: '2px 4px',
+              padding: '4px 6px',
+              margin: '-4px -6px',
               cursor: 'pointer',
             }}
           >
             <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-status-success)', marginBottom: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                 <ArrowDownLeft size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                 Inbound Capital
               </span>
               <Sliders size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-tertiary)' }} />
             </div>
-            <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.14rem', fontWeight: 700, color: 'var(--as-status-success)' }}>
-              +{fmtFull(totalIncome)}
+            <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '1.18rem', fontWeight: 700, color: totalIncome > 0.005 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)' }}>
+              {totalIncome > 0.005 ? `+${fmtFull(totalIncome)}` : fmtFull(0)}
             </div>
-            <div style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--as-text-tertiary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4, fontVariantNumeric: 'tabular-nums' }}>
               <Calendar size={11} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               <span>{incomeDatesSummary || 'Edit deposit dates'}</span>
             </div>

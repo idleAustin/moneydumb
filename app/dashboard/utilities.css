@@ -214,8 +214,8 @@ textarea:focus-visible {
 
 /* ========== IDLE AUSTIN ACTION COMPONENTS & TOOLTIPS ========== */
 .icon-action-btn {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--as-radius-sm);
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
@@ -225,6 +225,8 @@ textarea:focus-visible {
   justify-content: center;
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
+  text-decoration: none;
   transition: transform var(--as-duration-fast) var(--as-ease-snap),
               background var(--as-duration-normal) ease,
               border-color var(--as-duration-normal) ease,
@@ -346,7 +348,8 @@ textarea:focus-visible {
     min-height: 44px;
   }
 
-  .table-search-btn {
+  .table-search-btn,
+  .icon-action-btn {
     min-width: 44px;
   }
 

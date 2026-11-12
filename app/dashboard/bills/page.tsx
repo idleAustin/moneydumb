@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
+  Plus,
 } from 'lucide-react';
 import { getAuthUserId } from '@/app/lib/auth';
 import { getDashboardStats, type UpcomingBillItem } from '@/app/lib/actions';
@@ -34,64 +35,54 @@ export default async function BillsPage() {
 
   return (
     <div className="fade-in">
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-        }}
-      >
+      <div className="page-header">
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center' }}>
+          <h2>
             <Receipt
               size={20}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
             />
             <span>Bills &amp; Obligations</span>
           </h2>
           <p>Monitor recurring monthly bills, pending obligations, and post-bill safe liquidity.</p>
         </div>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          <Link
-            href="/dashboard/audit"
-            className="btn btn-secondary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
+        <div className="page-header-actions">
+          <Link href="/dashboard/audit" className="btn btn-secondary">
             <ClipboardCheck size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             <span>Daily Audit</span>
           </Link>
-          <Link
-            href="/dashboard/banks"
-            className="btn btn-secondary"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
+          <Link href="/dashboard/banks" className="btn btn-secondary">
             <Landmark size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             <span>Bank Liquidity</span>
           </Link>
           {stats.upcomingBills.length > 0 && (
             <Link href="/dashboard/expenses" className="btn btn-primary">
-              Manage Expenses
+              <span>Manage Expenses</span>
             </Link>
           )}
         </div>
       </div>
 
       <div className="card-grid-3 section">
-        <div className={`stat-card ${stats.totalAssets < 0 ? 'stat-red' : 'stat-blue'}`}>
+        <div
+          className={`stat-card ${
+            stats.totalAssets < -0.005
+              ? 'stat-red'
+              : Math.abs(stats.totalAssets) < 0.005
+              ? 'stat-zero'
+              : ''
+          }`}
+        >
           <div className="stat-label">Total Assets</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              ...(stats.totalAssets < 0 ? { color: 'var(--as-status-error)' } : {}),
             }}
           >
             {fmtCurrency(stats.totalAssets)}
@@ -108,17 +99,16 @@ export default async function BillsPage() {
           </div>
         </div>
 
-        <div className={`stat-card ${stats.pendingOut > 0 ? 'stat-amber' : 'stat-green'}`}>
+        <div className={`stat-card ${stats.pendingOut > 0.005 ? 'stat-amber' : 'stat-zero'}`}>
           <div className="stat-label">Pending Bills</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              ...(stats.pendingOut > 0 ? { color: 'var(--as-status-error)' } : {}),
             }}
           >
-            {stats.pendingOut > 0 ? fmtCurrency(-stats.pendingOut) : fmtCurrency(0)}
+            {stats.pendingOut > 0.005 ? fmtCurrency(-stats.pendingOut) : fmtCurrency(0)}
           </div>
           <div
             className="stat-sub"
@@ -132,15 +122,21 @@ export default async function BillsPage() {
           </div>
         </div>
 
-        <div className={`stat-card ${stats.safeBalance < 0 ? 'stat-red' : 'stat-green'}`}>
+        <div
+          className={`stat-card ${
+            stats.safeBalance < -0.005
+              ? 'stat-red'
+              : stats.safeBalance > 0.005
+              ? 'stat-green'
+              : 'stat-zero'
+          }`}
+        >
           <div className="stat-label">Safe to Spend</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              color:
-                stats.safeBalance < 0 ? 'var(--as-status-error)' : 'var(--as-status-success)',
             }}
           >
             {fmtCurrency(stats.safeBalance)}
@@ -154,12 +150,8 @@ export default async function BillsPage() {
       <div className="card section">
         <div className="card-header">
           <h3>Recurring Bill Schedule</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-            <Link
-              href="/dashboard/types"
-              className="btn btn-secondary btn-small"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-            >
+          <div className="card-header-actions">
+            <Link href="/dashboard/types" className="btn btn-secondary btn-small">
               <Tags size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
               <span>Expense Categories</span>
             </Link>
@@ -183,109 +175,108 @@ export default async function BillsPage() {
               account balances.
             </p>
             <Link href="/dashboard/expenses" className="btn btn-primary">
-              + Add Recurring Bill
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Add Recurring Bill</span>
             </Link>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Bill</th>
-                    <th scope="col">Due Timing</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" style={{ textAlign: 'right' }}>
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.upcomingBills.map((exp: UpcomingBillItem) => {
-                    const isPast = exp.daysUntil < 0;
-                    const isSoon = exp.daysUntil >= 0 && exp.daysUntil <= 7;
-                    const timingLabel =
-                      exp.daysUntil < 0
-                        ? `${Math.abs(exp.daysUntil)}d past due day`
-                        : exp.daysUntil === 0
-                        ? 'Due today'
-                        : `In ${exp.daysUntil} ${exp.daysUntil === 1 ? 'day' : 'days'}`;
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Bill</th>
+                  <th scope="col">Due Timing</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>
+                    Amount
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.upcomingBills.map((exp: UpcomingBillItem) => {
+                  const isPast = exp.daysUntil < 0;
+                  const isSoon = exp.daysUntil >= 0 && exp.daysUntil <= 7;
+                  const timingLabel =
+                    exp.daysUntil < 0
+                      ? `${Math.abs(exp.daysUntil)}d past due day`
+                      : exp.daysUntil === 0
+                      ? 'Due today'
+                      : `In ${exp.daysUntil} ${exp.daysUntil === 1 ? 'day' : 'days'}`;
 
-                    return (
-                      <tr key={exp.id}>
-                        <td style={{ fontWeight: 600 }}>{exp.name}</td>
-                        <td
-                          style={{
-                            fontFamily: 'var(--as-font-mono)',
-                            fontVariantNumeric: 'tabular-nums',
-                            fontSize: '0.8125rem',
-                            color: isPast
-                              ? 'var(--as-status-error)'
-                              : isSoon
-                              ? 'var(--as-status-warning)'
-                              : 'var(--as-text-secondary)',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {timingLabel}
-                        </td>
-                        <td>
-                          {isPast ? (
-                            <span
-                              className="badge badge-red"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <AlertCircle
-                                size={12}
-                                strokeWidth={2.0}
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                              <span>Past Due Day</span>
-                            </span>
-                          ) : isSoon ? (
-                            <span
-                              className="badge badge-amber"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <Clock
-                                size={12}
-                                strokeWidth={2.0}
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                              <span>Due Soon</span>
-                            </span>
-                          ) : (
-                            <span
-                              className="badge badge-blue"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <Calendar
-                                size={12}
-                                strokeWidth={2.0}
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                              <span>Scheduled</span>
-                            </span>
-                          )}
-                        </td>
-                        <td
-                          className="amount"
-                          style={{
-                            fontFamily: 'var(--as-font-mono)',
-                            fontVariantNumeric: 'tabular-nums',
-                          }}
-                        >
-                          {fmtCurrency(Number(exp.amount))}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  return (
+                    <tr key={exp.id}>
+                      <td style={{ fontWeight: 600 }}>{exp.name}</td>
+                      <td
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                          fontSize: '0.8125rem',
+                          color: isPast
+                            ? 'var(--as-status-error)'
+                            : isSoon
+                            ? 'var(--as-status-warning)'
+                            : 'var(--as-text-secondary)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {timingLabel}
+                      </td>
+                      <td>
+                        {isPast ? (
+                          <span
+                            className="badge badge-red"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <AlertCircle
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Past Due Day</span>
+                          </span>
+                        ) : isSoon ? (
+                          <span
+                            className="badge badge-amber"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Clock
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Due Soon</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="badge badge-blue"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Calendar
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            <span>Scheduled</span>
+                          </span>
+                        )}
+                      </td>
+                      <td
+                        className="amount"
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {fmtCurrency(Number(exp.amount))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

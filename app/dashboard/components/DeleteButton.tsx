@@ -147,8 +147,7 @@ export default function DeleteButton({
             onClick={handleCancel}
             aria-label="Cancel delete"
             style={{
-              padding: '4px 8px',
-              fontSize: '0.7rem',
+              padding: '0 8px',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',

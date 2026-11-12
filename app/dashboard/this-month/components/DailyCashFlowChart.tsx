@@ -285,7 +285,8 @@ export function DailyCashFlowChart({
                 aria-pressed={isActive}
                 aria-label={`Filter cash flow trajectory by ${scope.label}`}
                 style={{
-                  padding: '4px 10px',
+                  minHeight: 28,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-pill)',
                   border: isActive ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                   background: isActive ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
@@ -293,6 +294,8 @@ export function DailyCashFlowChart({
                   fontSize: '0.72rem',
                   fontWeight: isActive ? 700 : 600,
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 {scope.label}
@@ -324,8 +327,8 @@ export function DailyCashFlowChart({
 
       {/* LOCKED-IN OPTION D: Compact Zoomed Curve + 31-Day Interactive Cash-Burn Heatmap Strip */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{ width: '100%', height: 175 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: '100%', minWidth: 0, height: 175 }}>
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
             <AreaChart
               data={chartData}
               margin={{ top: 6, right: 12, left: 8, bottom: 2 }}
@@ -376,6 +379,7 @@ export function DailyCashFlowChart({
                 aria-pressed={isSelected}
                 aria-label={`Inspect Day ${row.day} cash flow events`}
                 style={{
+                  minHeight: 42,
                   padding: '5px 6px',
                   borderRadius: 'var(--as-radius-sm)',
                   border: isSelected
@@ -392,6 +396,9 @@ export function DailyCashFlowChart({
                     : 'var(--as-bg-base)',
                   cursor: 'pointer',
                   textAlign: 'left',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
                 }}

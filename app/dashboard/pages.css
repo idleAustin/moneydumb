@@ -241,7 +241,12 @@
 }
 
 .page-header {
-  margin-bottom: 28px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 24px;
 }
 .page-header h2 {
   font-family: var(--as-font-heading);
@@ -249,7 +254,11 @@
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.2;
-  color: var(--text-primary);
+  color: var(--as-text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
 }
 .page-header p {
   color: var(--as-text-secondary);
@@ -258,6 +267,12 @@
   max-width: 68ch;
   margin-top: 6px;
   font-weight: 400;
+}
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ========== SIDEBAR FOOTER & SHUTDOWN BUTTON ========== */

@@ -52,7 +52,7 @@
 /* ========== RESPONSIVE ========== */
 @media (max-width: 1024px) {
   .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .card-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .card-grid-3:not(.section) { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
@@ -136,10 +136,12 @@
     gap: 12px !important;
   }
 
-  /* ---- Stat Cards — 2-col on mobile ---- */
-  .card-grid-3.section,
+  /* ---- Stat Cards — symmetrical rows without half-width orphans ---- */
   .card-grid-4.section {
     grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .card-grid-3.section {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 
   /* ---- Stat Card: compact on mobile ---- */
@@ -352,6 +354,12 @@
 @keyframes slideUpMobile {
   from { opacity: 0; transform: translateY(100%); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 640px) {
+  .card-grid-3.section {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 /* ---- Extra small screens (< 400px) ---- */

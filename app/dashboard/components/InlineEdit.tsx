@@ -17,6 +17,7 @@ interface InlineEditProps {
   format?: 'currency' | 'percent' | 'raw';
   step?: string;
   ariaLabel?: string;
+  align?: 'left' | 'right';
 }
 
 export default function InlineEdit({
@@ -26,6 +27,7 @@ export default function InlineEdit({
   format = 'currency',
   step = '0.01',
   ariaLabel,
+  align,
 }: InlineEditProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
@@ -39,9 +41,16 @@ export default function InlineEdit({
   }, [editing]);
 
   const isValueEmpty = value === null || value === undefined || value === '';
+  const resolvedAlign = align ?? (type === 'number' ? 'right' : 'left');
 
   const startEdit = () => {
-    setDraft(isValueEmpty ? '' : String(value));
+    if (isValueEmpty) {
+      setDraft('');
+    } else if (type === 'number' && (format === 'currency' || format === 'percent')) {
+      setDraft(Number(value).toFixed(2));
+    } else {
+      setDraft(String(value));
+    }
     setEditing(true);
   };
 
@@ -90,6 +99,7 @@ export default function InlineEdit({
         style={{
           fontFamily: type === 'text' ? 'var(--as-font-body)' : 'var(--as-font-mono)',
           fontVariantNumeric: type === 'number' ? 'tabular-nums' : undefined,
+          textAlign: resolvedAlign,
           width: type === 'text' ? '160px' : '104px',
           maxWidth: '100%',
         }}

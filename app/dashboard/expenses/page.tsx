@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import axios from 'axios';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import {
   BarChart3,
   Receipt,
+  Tags,
+  Pencil,
   ExternalLink,
   Landmark,
   Plus,
@@ -340,7 +343,7 @@ export default function Expenses() {
     setForm({
       category_id: e.category_id || '',
       name: e.name || '',
-      amount: String(e.amount),
+      amount: Number(e.amount).toFixed(2),
       due_day_of_month: e.due_day_of_month != null ? String(e.due_day_of_month) : '',
       is_recurring: e.is_recurring,
       frequency: e.frequency || 'monthly',
@@ -483,8 +486,25 @@ export default function Expenses() {
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2>Expenses</h2>
-        <p>Monthly recurring obligations and discretionary allocations.</p>
+        <div>
+          <h2>
+            <Receipt
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Expenses</span>
+          </h2>
+          <p>Monthly recurring obligations and discretionary allocations.</p>
+        </div>
+        <div className="page-header-actions">
+          <Link href="/dashboard/types" className="btn btn-secondary">
+            <Tags size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Categories</span>
+          </Link>
+        </div>
       </div>
 
       {error && (
@@ -537,8 +557,8 @@ export default function Expenses() {
                 alignItems: 'center',
               }}
             >
-              <div style={{ width: '100%', height: 190 }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div style={{ width: '100%', minWidth: 0, height: 190 }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                   <PieChart>
                     <Pie
                       data={byCategory}
@@ -640,8 +660,8 @@ export default function Expenses() {
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="stat-card">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className={`stat-card${!loading && Math.abs(totalMonthly) < 0.005 ? ' stat-zero' : ''}`}>
             <div className="stat-label">Total Monthly</div>
             {loading ? (
               <div className="skeleton" style={{ height: 28, width: 120, marginTop: 6 }} />
@@ -657,7 +677,7 @@ export default function Expenses() {
               </>
             )}
           </div>
-          <div className="stat-card">
+          <div className={`stat-card${!loading && categories.length < 0.005 ? ' stat-zero' : ''}`}>
             <div className="stat-label">Categories</div>
             {loading ? (
               <div className="skeleton" style={{ height: 28, width: 60, marginTop: 6 }} />
@@ -671,7 +691,7 @@ export default function Expenses() {
               onClick={() => setShowCatModal(true)}
             >
               <Plus size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-              Add Category
+              <span>Add Category</span>
             </button>
           </div>
         </div>
@@ -679,7 +699,7 @@ export default function Expenses() {
 
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3>
             <Receipt
               size={16}
               strokeWidth={2.0}
@@ -687,9 +707,9 @@ export default function Expenses() {
               focusable="false"
               style={{ color: 'var(--as-text-secondary)' }}
             />
-            All Expenses
+            <span>All Expenses</span>
           </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="card-header-actions">
             <ExcelUpload
               templateName="expenses_template.xlsx"
               templateColumns={[
@@ -755,9 +775,9 @@ export default function Expenses() {
               isOpen={searchOpen}
               setIsOpen={setSearchOpen}
             />
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
+            <button type="button" className="btn btn-primary btn-small" onClick={openCreate}>
               <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-              Add Expense
+              <span>Add Expense</span>
             </button>
           </div>
         </div>
@@ -803,79 +823,165 @@ export default function Expenses() {
             </button>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <TableHeader
-                      label="Expense"
-                      sortKey="name"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                    />
-                    <TableHeader
-                      label="Category"
-                      sortKey="category"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                    />
-                    <TableHeader
-                      label="Amount"
-                      sortKey="amount"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Account"
-                      sortKey="account"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                    />
-                    <TableHeader
-                      label="Due Day"
-                      sortKey="due_day_of_month"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Frequency"
-                      sortKey="is_recurring"
-                      activeKey={sortKey}
-                      activeDirection={sortDirection}
-                      onClick={requestSort}
-                    />
-                    <th scope="col" style={{ width: 140 }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAndSortedExpenses.map((e) => {
-                    const cat = categories.find((c) => c.id === e.category_id);
-                    const acct = accounts.find((a) => a.id === e.account_id);
-                    const safeCatColor = cat ? resolveCategoryColor(cat.color) : null;
-                    const freqKey = (e.frequency || 'monthly').toLowerCase();
-                    return (
-                      <tr key={e.id}>
-                        <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span>{e.name}</span>
-                            {e.url && (
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TableHeader
+                    label="Expense"
+                    sortKey="name"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Category"
+                    sortKey="category"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Amount"
+                    sortKey="amount"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Account"
+                    sortKey="account"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <TableHeader
+                    label="Due Day"
+                    sortKey="due_day_of_month"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Frequency"
+                    sortKey="is_recurring"
+                    activeKey={sortKey}
+                    activeDirection={sortDirection}
+                    onClick={requestSort}
+                  />
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAndSortedExpenses.map((e) => {
+                  const cat = categories.find((c) => c.id === e.category_id);
+                  const acct = accounts.find((a) => a.id === e.account_id);
+                  const safeCatColor = cat ? resolveCategoryColor(cat.color) : null;
+                  const freqKey = (e.frequency || 'monthly').toLowerCase();
+                  return (
+                    <tr key={e.id}>
+                      <td style={{ fontWeight: 600 }}>
+                        <div>{e.name}</div>
+                        {e.notes && (
+                          <div
+                            style={{
+                              fontSize: '0.78rem',
+                              fontWeight: 400,
+                              color: 'var(--as-text-secondary)',
+                              marginTop: 2,
+                            }}
+                          >
+                            {e.notes}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        {cat && safeCatColor ? (
+                          <span
+                            className="badge"
+                            style={{
+                              background: `color-mix(in srgb, ${safeCatColor} 16%, transparent)`,
+                              border: `1px solid color-mix(in srgb, ${safeCatColor} 32%, transparent)`,
+                              color: safeCatColor,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                            }}
+                          >
+                            {getCategoryIcon(cat.icon, cat.name)}
+                            {cat.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--as-text-secondary)', fontSize: '0.82rem' }}>
+                            Uncategorized
+                          </span>
+                        )}
+                      </td>
+                      <td className="amount">
+                        <InlineEdit
+                          value={e.amount}
+                          onSave={async (v) => {
+                            await updateExpenseItem(e.id, 'amount', Number(v));
+                          }}
+                        />
+                      </td>
+                      <td>
+                        {acct ? (
+                          <span
+                            className="badge badge-blue"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <Landmark
+                              size={12}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            {acct.name}
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--as-text-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>
+                        {formatOrdinalDay(e.due_day_of_month)}
+                      </td>
+                      <td>
+                        {e.is_recurring ? (
+                          <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+                            <span className="badge badge-blue">
+                              {FREQUENCY_LABELS[freqKey] || e.frequency || 'Monthly'}
+                            </span>
+                            {(freqKey === 'quarterly' || freqKey === 'yearly') && (
+                              <span
+                                className="tabular-nums"
+                                style={{
+                                  fontSize: '0.72rem',
+                                  fontFamily: 'var(--as-font-mono)',
+                                  color: 'var(--as-text-secondary)',
+                                }}
+                              >
+                                {fmt(Number(e.amount) * getMonthlyMultiplier(e.frequency))}/mo
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="badge badge-amber">One-time</span>
+                        )}
+                      </td>
+                      <td className="col-actions">
+                        <div className="row-actions-group">
+                          {e.url && (
+                            <div className="tooltip-wrapper">
                               <a
                                 href={e.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="icon-action-btn"
-                                style={{ textDecoration: 'none' }}
-                                title="Visit billing site"
                                 aria-label={`Visit billing site for ${e.name}`}
                               >
                                 <ExternalLink
@@ -885,117 +991,40 @@ export default function Expenses() {
                                   focusable="false"
                                 />
                               </a>
-                            )}
-                          </div>
-                          {e.notes && (
-                            <div
-                              style={{
-                                fontSize: '0.78rem',
-                                fontWeight: 400,
-                                color: 'var(--as-text-secondary)',
-                                marginTop: 2,
-                              }}
-                            >
-                              {e.notes}
+                              <div className="tooltip-bubble" role="tooltip">
+                                <span>Visit billing site</span>
+                              </div>
                             </div>
                           )}
-                        </td>
-                        <td>
-                          {cat && safeCatColor ? (
-                            <span
-                              className="badge"
-                              style={{
-                                background: `color-mix(in srgb, ${safeCatColor} 16%, transparent)`,
-                                border: `1px solid color-mix(in srgb, ${safeCatColor} 32%, transparent)`,
-                                color: safeCatColor,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                              }}
+                          <div className="tooltip-wrapper">
+                            <button
+                              type="button"
+                              className="icon-action-btn"
+                              onClick={() => openEdit(e)}
+                              aria-label={`Edit ${e.name}`}
                             >
-                              {getCategoryIcon(cat.icon, cat.name)}
-                              {cat.name}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--as-text-secondary)', fontSize: '0.82rem' }}>
-                              Uncategorized
-                            </span>
-                          )}
-                        </td>
-                        <td className="amount">
-                          <InlineEdit
-                            value={e.amount}
-                            onSave={async (v) => {
-                              await updateExpenseItem(e.id, 'amount', Number(v));
-                            }}
-                          />
-                        </td>
-                        <td>
-                          {acct ? (
-                            <span
-                              className="badge badge-blue"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <Landmark
-                                size={12}
+                              <Pencil
+                                size={14}
                                 strokeWidth={2.0}
                                 aria-hidden="true"
                                 focusable="false"
                               />
-                              {acct.name}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--as-text-secondary)' }}>—</span>
-                          )}
-                        </td>
-                        <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>
-                          {formatOrdinalDay(e.due_day_of_month)}
-                        </td>
-                        <td>
-                          {e.is_recurring ? (
-                            <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
-                              <span className="badge badge-blue">
-                                {FREQUENCY_LABELS[freqKey] || e.frequency || 'Monthly'}
-                              </span>
-                              {(freqKey === 'quarterly' || freqKey === 'yearly') && (
-                                <span
-                                  className="tabular-nums"
-                                  style={{
-                                    fontSize: '0.72rem',
-                                    fontFamily: 'var(--as-font-mono)',
-                                    color: 'var(--as-text-secondary)',
-                                  }}
-                                >
-                                  {fmt(Number(e.amount) * getMonthlyMultiplier(e.frequency))}/mo
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="badge badge-amber">One-time</span>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-small"
-                              onClick={() => openEdit(e)}
-                              aria-label={`Edit ${e.name}`}
-                            >
-                              Edit
                             </button>
-                            <DeleteButton
-                              onDelete={() => deleteExpenseItem(e.id)}
-                              ariaLabel={`Delete ${e.name}`}
-                            />
+                            <div className="tooltip-bubble" role="tooltip">
+                              <span>Edit {e.name}</span>
+                            </div>
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          <DeleteButton
+                            onDelete={() => deleteExpenseItem(e.id)}
+                            ariaLabel={`Delete ${e.name}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -1046,15 +1075,22 @@ export default function Expenses() {
                 </div>
                 <div className="form-group">
                   <label htmlFor="expense-amount">Amount</label>
-                  <input
-                    id="expense-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={form.amount}
-                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="expense-amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      className="has-unit-left"
+                      value={form.amount}
+                      onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="form-row">

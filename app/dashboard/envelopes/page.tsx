@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Plus,
   Home,
   Utensils,
   Zap,
@@ -319,50 +320,105 @@ export default function Envelopes() {
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <Mail
-            size={20}
-            strokeWidth={2.0}
-            aria-hidden="true"
-            focusable="false"
-            style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
-          />{' '}
-          Envelope Budgeting
-        </h2>
-        <p>Set monthly category spending caps and track remaining safe allocation.</p>
-      </div>
+        <div>
+          <h2>
+            <Mail
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Envelope Budgeting</span>
+          </h2>
+          <p>Set monthly category spending caps and track remaining safe allocation.</p>
+        </div>
 
-      {/* Month Selector */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-        <button
-          type="button"
-          className="btn btn-secondary btn-small"
-          onClick={() => shiftMonth(-1)}
-          aria-label="Previous month"
-        >
-          <ChevronLeft size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-          <span>Prev</span>
-        </button>
-        <span
-          style={{
-            fontWeight: 700,
-            fontSize: '1.05rem',
-            fontVariantNumeric: 'tabular-nums',
-            minWidth: 150,
-            textAlign: 'center',
-          }}
-        >
-          {MONTH_NAMES[month - 1]} {year}
-        </span>
-        <button
-          type="button"
-          className="btn btn-secondary btn-small"
-          onClick={() => shiftMonth(1)}
-          aria-label="Next month"
-        >
-          <span>Next</span>
-          <ChevronRight size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-        </button>
+        <div className="page-header-actions">
+          <div
+            role="group"
+            aria-label="Month selector"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              minHeight: 36,
+              padding: '0 4px',
+              background: 'var(--as-bg-surface)',
+              border: '1px solid var(--as-border-subtle)',
+              borderRadius: 'var(--as-radius-sm)',
+            }}
+          >
+            <button
+              type="button"
+              className="icon-action-btn"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Previous month"
+              style={{ width: 28, height: 28 }}
+            >
+              <ChevronLeft size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            </button>
+            <span
+              style={{
+                minWidth: 128,
+                textAlign: 'center',
+                fontFamily: 'var(--as-font-mono)',
+                fontVariantNumeric: 'tabular-nums',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: 'var(--as-text-primary)',
+              }}
+            >
+              {MONTH_NAMES[month - 1]} {year}
+            </span>
+            <button
+              type="button"
+              className="icon-action-btn"
+              onClick={() => shiftMonth(1)}
+              aria-label="Next month"
+              style={{ width: 28, height: 28 }}
+            >
+              <ChevronRight size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleSmartEnvelope}
+            disabled={generating}
+          >
+            {generating ? (
+              <>
+                <Loader2
+                  size={15}
+                  strokeWidth={2.0}
+                  className="animate-spin"
+                  aria-hidden="true"
+                  focusable="false"
+                />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <Wand2 size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                <span>Smart Envelope</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setFormError(null);
+              setShowModal(true);
+            }}
+          >
+            <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>New Envelope</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -485,7 +541,7 @@ export default function Envelopes() {
       ) : (
         <>
           <div className="card-grid-3 section">
-            <div className="stat-card stat-blue">
+            <div className={`stat-card ${totalBudgeted < 0.005 ? 'stat-zero' : ''}`}>
               <div className="stat-label">Total Budgeted</div>
               <div
                 className="stat-value"
@@ -494,27 +550,33 @@ export default function Envelopes() {
                 {fmt(totalBudgeted)}
               </div>
             </div>
-            <div className={`stat-card ${totalSpent > totalBudgeted ? 'stat-red' : 'stat-green'}`}>
+            <div
+              className={`stat-card ${
+                totalSpent > totalBudgeted && totalBudgeted > 0
+                  ? 'stat-red'
+                  : totalSpent < 0.005
+                  ? 'stat-zero'
+                  : ''
+              }`}
+            >
               <div className="stat-label">Total Spent</div>
               <div
                 className="stat-value"
                 style={{
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
-                  ...(totalSpent > totalBudgeted ? { color: 'var(--as-status-error)' } : {}),
                 }}
               >
                 {fmt(totalSpent)}
               </div>
             </div>
-            <div className={`stat-card ${overCount > 0 ? 'stat-red' : 'stat-green'}`}>
+            <div className={`stat-card ${overCount > 0 ? 'stat-red' : 'stat-zero'}`}>
               <div className="stat-label">Over Budget</div>
               <div
                 className="stat-value"
                 style={{
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
-                  ...(overCount > 0 ? { color: 'var(--as-status-error)' } : {}),
                 }}
               >
                 {overCount}
@@ -531,54 +593,6 @@ export default function Envelopes() {
               </div>
             </div>
           </div>
-
-          {envelopes.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                justifyContent: 'flex-end',
-                gap: 10,
-                marginBottom: 16,
-              }}
-            >
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleSmartEnvelope}
-                disabled={generating}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                {generating ? (
-                  <>
-                    <Loader2
-                      size={16}
-                      strokeWidth={2.0}
-                      className="animate-spin"
-                      aria-hidden="true"
-                      focusable="false"
-                    />
-                    <span>Generating...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wand2 size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                    <span>Smart Envelope</span>
-                  </>
-                )}
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setFormError(null);
-                  setShowModal(true);
-                }}
-              >
-                + New Envelope
-              </button>
-            </div>
-          )}
 
           {envelopes.length === 0 ? (
             <div className="card">
@@ -613,12 +627,11 @@ export default function Envelopes() {
                     className="btn btn-secondary"
                     onClick={handleSmartEnvelope}
                     disabled={generating}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     {generating ? (
                       <>
                         <Loader2
-                          size={16}
+                          size={15}
                           strokeWidth={2.0}
                           className="animate-spin"
                           aria-hidden="true"
@@ -628,7 +641,7 @@ export default function Envelopes() {
                       </>
                     ) : (
                       <>
-                        <Wand2 size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                        <Wand2 size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
                         <span>Smart Envelope</span>
                       </>
                     )}
@@ -641,7 +654,8 @@ export default function Envelopes() {
                       setShowModal(true);
                     }}
                   >
-                    + New Envelope
+                    <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                    <span>New Envelope</span>
                   </button>
                 </div>
               </div>
@@ -691,13 +705,18 @@ export default function Envelopes() {
                         {cat &&
                           (() => {
                             const IconComp = getCategoryIcon(cat.name, cat.icon);
+                            const rawCatColor = (cat.color || '').trim();
+                            const catColor =
+                              !rawCatColor || rawCatColor === '#000' || rawCatColor === '#000000'
+                                ? 'var(--as-accent-primary)'
+                                : rawCatColor;
                             return (
                               <span
                                 className="badge"
                                 style={{
-                                  background: 'var(--as-bg-elevated)',
-                                  border: '1px solid var(--as-border-subtle)',
-                                  color: 'var(--as-text-secondary)',
+                                  background: `color-mix(in srgb, ${catColor} 14%, transparent)`,
+                                  borderColor: `color-mix(in srgb, ${catColor} 30%, transparent)`,
+                                  color: catColor,
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   gap: '6px',
@@ -713,7 +732,7 @@ export default function Envelopes() {
                                   strokeWidth={2.0}
                                   aria-hidden="true"
                                   focusable="false"
-                                  style={{ color: 'var(--as-text-secondary)', flexShrink: 0 }}
+                                  style={{ flexShrink: 0 }}
                                 />
                                 <span
                                   style={{
@@ -737,9 +756,10 @@ export default function Envelopes() {
                             setSpendForm({ amount: '', description: '' });
                             setShowSpendModal(env.id);
                           }}
-                          aria-label={`+ Spend for ${env.name}`}
+                          aria-label={`Log spend for ${env.name}`}
                         >
-                          + Spend
+                          <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                          <span>Spend</span>
                         </button>
                         <DeleteButton
                           onDelete={() => deleteEnvelopeItem(env.id)}
@@ -783,7 +803,11 @@ export default function Envelopes() {
                         fontSize: '0.8125rem',
                         fontFamily: 'var(--as-font-mono)',
                         fontVariantNumeric: 'tabular-nums',
-                        color: over ? 'var(--as-status-error)' : 'var(--as-status-success)',
+                        color: over
+                          ? 'var(--as-status-error)'
+                          : remaining < 0.005
+                          ? 'var(--as-text-tertiary)'
+                          : 'var(--as-status-success)',
                         fontWeight: 600,
                       }}
                     >
@@ -888,16 +912,22 @@ export default function Envelopes() {
                 </div>
                 <div className="form-group">
                   <label htmlFor="envelope-budget">Budget Amount</label>
-                  <input
-                    id="envelope-budget"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={form.budgeted_amount}
-                    onChange={(e) => setForm({ ...form, budgeted_amount: e.target.value })}
-                    placeholder="0.00"
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="envelope-budget"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      className="has-unit-left"
+                      value={form.budgeted_amount}
+                      onChange={(e) => setForm({ ...form, budgeted_amount: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="form-group">
@@ -967,16 +997,22 @@ export default function Envelopes() {
             <form onSubmit={handleSpend}>
               <div className="form-group">
                 <label htmlFor="spend-amount">Amount</label>
-                <input
-                  id="spend-amount"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  required
-                  value={spendForm.amount}
-                  onChange={(e) => setSpendForm({ ...spendForm, amount: e.target.value })}
-                  placeholder="0.00"
-                />
+                <div className="input-unit-wrap">
+                  <span className="input-unit-left" aria-hidden="true">
+                    $
+                  </span>
+                  <input
+                    id="spend-amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    className="has-unit-left"
+                    value={spendForm.amount}
+                    onChange={(e) => setSpendForm({ ...spendForm, amount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
               <div className="form-group">
                 <label htmlFor="spend-description">Description</label>

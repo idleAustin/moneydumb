@@ -354,10 +354,11 @@
 .tm-search-input {
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
-  border-radius: var(--as-radius-md);
+  border-radius: var(--as-radius-sm);
   color: var(--as-text-primary);
   font-size: 0.75rem;
-  padding: 5px 10px 5px 26px;
+  min-height: 30px;
+  padding: 0 10px 0 26px;
   width: 195px;
   transition: border-color var(--as-duration-normal) var(--as-ease-snap);
 }
@@ -461,7 +462,10 @@
   margin-bottom: 16px;
 }
 .tm-mode-switcher {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 32px;
   background: var(--as-bg-surface);
   border: 1px solid var(--as-border-subtle);
   border-radius: var(--as-radius-md);
@@ -715,11 +719,31 @@
   outline-offset: 2px;
 }
 
-/* 5. Forecast & Flow Heatmap Grid & Waterfall Expand Button */
+/* 5. Forecast & Flow Heatmap Grid, Telemetry Strips & Waterfall Expand Button */
 .tm-heatmap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 4px;
+}
+.tm-waterfall-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--as-bg-base);
+  border-radius: var(--as-radius-md);
+  border: 1px solid var(--as-border-subtle);
+}
+.tm-projection-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: var(--as-bg-base);
+  border-radius: var(--as-radius-md);
+  border: 1px solid var(--as-border-subtle);
 }
 .tm-waterfall-expand-btn {
   background: transparent;
@@ -779,6 +803,15 @@
   }
   .tm-debts-panel {
     position: static;
+  }
+  .tm-waterfall-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tm-waterfall-kpi-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+  .tm-projection-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -1014,6 +1047,13 @@
   .tm-toast {
     left: 12px;
     right: 12px;
+  }
+  .tm-waterfall-kpi-grid,
+  .tm-projection-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .tm-waterfall-kpi-grid > :last-child {
+    grid-column: auto;
   }
 }
 

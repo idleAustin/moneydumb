@@ -21,6 +21,7 @@ import {
   Circle,
   ArrowDownCircle,
   Loader2,
+  Plus,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -285,22 +286,24 @@ export default function Wants() {
     }
   };
 
-  const totalCost = unpurchased.reduce((s, w) => s + Number(w.estimated_cost), 0);
+  const totalUnpurchasedCost = unpurchased.reduce((s, w) => s + Number(w.estimated_cost), 0);
 
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <Sparkles
-            size={20}
-            strokeWidth={2.0}
-            aria-hidden="true"
-            focusable="false"
-            style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
-          />{' '}
-          Wants Wishlist
-        </h2>
-        <p>Rank discretionary purchases and evaluate post-bill cash-flow feasibility.</p>
+        <div>
+          <h2>
+            <Sparkles
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Wants Wishlist</span>
+          </h2>
+          <p>Rank discretionary purchases and evaluate post-bill cash-flow feasibility.</p>
+        </div>
       </div>
 
       {error && (
@@ -361,7 +364,7 @@ export default function Wants() {
       ) : (
         <>
           <div className="card-grid-3 section">
-            <div className="stat-card stat-purple">
+            <div className={`stat-card ${unpurchased.length === 0 ? 'stat-zero' : ''}`}>
               <div className="stat-label">Wishlist Items</div>
               <div
                 className="stat-value"
@@ -370,16 +373,16 @@ export default function Wants() {
                 {unpurchased.length}
               </div>
             </div>
-            <div className="stat-card stat-amber">
+            <div className={`stat-card ${totalUnpurchasedCost < 0.005 ? 'stat-zero' : ''}`}>
               <div className="stat-label">Total Cost</div>
               <div
                 className="stat-value"
                 style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}
               >
-                {fmt(totalCost)}
+                {fmt(totalUnpurchasedCost)}
               </div>
             </div>
-            <div className="stat-card stat-green">
+            <div className={`stat-card ${purchased.length > 0 ? 'stat-green' : 'stat-zero'}`}>
               <div className="stat-label">Purchased</div>
               <div
                 className="stat-value"
@@ -442,17 +445,17 @@ export default function Wants() {
                           marginBottom: 4,
                         }}
                       >
-                        Monthly Discretionary
+                        Monthly discretionary
                       </div>
                       <div
                         style={{
                           fontSize: '1.2rem',
                           fontWeight: 700,
                           color:
-                            disc < 0
+                            disc < -0.005
                               ? 'var(--as-status-error)'
-                              : disc === 0
-                              ? 'var(--as-text-secondary)'
+                              : Math.abs(disc) < 0.005
+                              ? 'var(--as-text-tertiary)'
                               : 'var(--as-status-success)',
                           fontFamily: 'var(--as-font-mono)',
                           fontVariantNumeric: 'tabular-nums',
@@ -471,15 +474,16 @@ export default function Wants() {
                           marginBottom: 4,
                         }}
                       >
-                        % of Income
+                        % of income
                       </div>
                       <div
                         style={{
                           fontSize: '1.2rem',
                           fontWeight: 700,
-                          color: noIncomePct
-                            ? 'var(--as-text-secondary)'
-                            : 'var(--as-status-warning)',
+                          color:
+                            noIncomePct || pctIncome < 0.005
+                              ? 'var(--as-text-tertiary)'
+                              : 'var(--as-status-warning)',
                           fontFamily: 'var(--as-font-mono)',
                           fontVariantNumeric: 'tabular-nums',
                         }}
@@ -499,7 +503,7 @@ export default function Wants() {
                           marginBottom: 4,
                         }}
                       >
-                        Months to Save
+                        Months to save
                       </div>
                       <div
                         style={{
@@ -507,6 +511,8 @@ export default function Wants() {
                           fontWeight: 700,
                           color: noSurplus
                             ? 'var(--as-status-error)'
+                            : monthsToSave < 0.005
+                            ? 'var(--as-text-tertiary)'
                             : 'var(--as-status-info)',
                           fontFamily: 'var(--as-font-mono)',
                           fontVariantNumeric: 'tabular-nums',
@@ -557,26 +563,27 @@ export default function Wants() {
           <div className="card section">
             <div className="card-header">
               <h3>Wishlist</h3>
-              {unpurchased.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <div className="card-header-actions">
+                {unpurchased.length > 0 && (
                   <TableSearch
                     searchQuery={wishlistTable.searchQuery}
                     setSearchQuery={wishlistTable.setSearchQuery}
                     isOpen={wishlistTable.searchOpen}
                     setIsOpen={wishlistTable.setSearchOpen}
                   />
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={() => {
-                      setFormError(null);
-                      setShowModal(true);
-                    }}
-                  >
-                    + Add Want
-                  </button>
-                </div>
-              )}
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormError(null);
+                    setShowModal(true);
+                  }}
+                >
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Want</span>
+                </button>
+              </div>
             </div>
 
             {unpurchased.length === 0 ? (
@@ -603,7 +610,8 @@ export default function Wants() {
                     setShowModal(true);
                   }}
                 >
-                  + Add Want
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Want</span>
                 </button>
               </div>
             ) : wishlistTable.data.length === 0 ? (
@@ -622,231 +630,214 @@ export default function Wants() {
                 </button>
               </div>
             ) : (
-              <div className="scroll-table-wrapper">
-                <div className="scroll-table-inner">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <TableHeader
-                          label="Item"
-                          sortKey="name"
-                          activeKey={wishlistTable.sortKey}
-                          activeDirection={wishlistTable.sortDirection}
-                          onClick={wishlistTable.requestSort}
-                        />
-                        <TableHeader
-                          label="Cost"
-                          sortKey="estimated_cost"
-                          activeKey={wishlistTable.sortKey}
-                          activeDirection={wishlistTable.sortDirection}
-                          onClick={wishlistTable.requestSort}
-                          style={{ textAlign: 'right' }}
-                        />
-                        <TableHeader
-                          label="Priority"
-                          sortKey="priority"
-                          activeKey={wishlistTable.sortKey}
-                          activeDirection={wishlistTable.sortDirection}
-                          onClick={wishlistTable.requestSort}
-                        />
-                        <TableHeader
-                          label="Added"
-                          sortKey="created_at"
-                          activeKey={wishlistTable.sortKey}
-                          activeDirection={wishlistTable.sortDirection}
-                          onClick={wishlistTable.requestSort}
-                        />
-                        <th scope="col" style={{ width: 250, textAlign: 'right' }}>
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {wishlistTable.data.map((w) => {
-                        const isConfirming = confirmingPurchaseId === w.id;
-                        const isPurchasing = purchasingId === w.id;
-                        const isAnalyzing = analyzingId === w.id;
-                        return (
-                          <tr key={w.id}>
-                            <td>
-                              <div style={{ fontWeight: 600 }}>{w.name}</div>
-                              {w.notes && (
-                                <div
-                                  style={{
-                                    fontSize: '0.8rem',
-                                    color: 'var(--as-text-secondary)',
-                                    marginTop: 2,
-                                  }}
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <TableHeader
+                        label="Item"
+                        sortKey="name"
+                        activeKey={wishlistTable.sortKey}
+                        activeDirection={wishlistTable.sortDirection}
+                        onClick={wishlistTable.requestSort}
+                      />
+                      <TableHeader
+                        label="Cost"
+                        sortKey="estimated_cost"
+                        activeKey={wishlistTable.sortKey}
+                        activeDirection={wishlistTable.sortDirection}
+                        onClick={wishlistTable.requestSort}
+                        style={{ textAlign: 'right' }}
+                      />
+                      <TableHeader
+                        label="Priority"
+                        sortKey="priority"
+                        activeKey={wishlistTable.sortKey}
+                        activeDirection={wishlistTable.sortDirection}
+                        onClick={wishlistTable.requestSort}
+                      />
+                      <TableHeader
+                        label="Added"
+                        sortKey="created_at"
+                        activeKey={wishlistTable.sortKey}
+                        activeDirection={wishlistTable.sortDirection}
+                        onClick={wishlistTable.requestSort}
+                      />
+                      <th scope="col" className="col-actions">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wishlistTable.data.map((w) => {
+                      const isConfirming = confirmingPurchaseId === w.id;
+                      const isPurchasing = purchasingId === w.id;
+                      const isAnalyzing = analyzingId === w.id;
+                      const estCost = Number(w.estimated_cost);
+                      return (
+                        <tr key={w.id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--as-text-primary)' }}>
+                              {w.name}
+                            </div>
+                            {w.notes && (
+                              <div
+                                style={{
+                                  fontSize: '0.8rem',
+                                  color: 'var(--as-text-secondary)',
+                                  marginTop: 2,
+                                }}
+                              >
+                                {w.notes}
+                              </div>
+                            )}
+                          </td>
+                          <td
+                            className="amount"
+                            style={{
+                              color:
+                                estCost < 0.005
+                                  ? 'var(--as-text-tertiary)'
+                                  : 'var(--as-text-primary)',
+                              fontFamily: 'var(--as-font-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {fmt(estCost)}
+                          </td>
+                          <td>
+                            {(() => {
+                              const cfg = priorityConfig[w.priority] || priorityConfig.medium;
+                              const Icon = cfg.Icon;
+                              return (
+                                <span
+                                  className={`badge ${cfg.class || 'badge-blue'}`}
+                                  style={{ display: 'inline-flex', alignItems: 'center' }}
                                 >
-                                  {w.notes}
-                                </div>
-                              )}
-                              {w.url && (
-                                <a
-                                  href={w.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  aria-label={`Open link for ${w.name}`}
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--as-accent-primary)',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    marginTop: 4,
-                                  }}
-                                >
-                                  <ExternalLink
+                                  <Icon
                                     size={12}
                                     strokeWidth={2.0}
                                     aria-hidden="true"
                                     focusable="false"
                                     style={{ marginRight: 4 }}
                                   />
-                                  <span>Link</span>
-                                </a>
-                              )}
-                            </td>
-                            <td
-                              className="amount"
-                              style={{
-                                color: 'var(--as-status-warning)',
-                                fontFamily: 'var(--as-font-mono)',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            >
-                              {fmt(Number(w.estimated_cost))}
-                            </td>
-                            <td>
-                              {(() => {
-                                const cfg = priorityConfig[w.priority] || priorityConfig.medium;
-                                const Icon = cfg.Icon;
-                                return (
-                                  <span
-                                    className={`badge ${cfg.class || 'badge-blue'}`}
-                                    style={{ display: 'inline-flex', alignItems: 'center' }}
+                                  {cfg.label || w.priority}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="cell-date">
+                            {w.created_at?.substring(0, 10) || '—'}
+                          </td>
+                          <td className="col-actions">
+                            <div className="row-actions-group">
+                              {w.url && (
+                                <div className="tooltip-wrapper">
+                                  <a
+                                    href={w.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="icon-action-btn"
+                                    aria-label={`Open link for ${w.name}`}
                                   >
-                                    <Icon
-                                      size={12}
-                                      strokeWidth={2.0}
-                                      aria-hidden="true"
-                                      focusable="false"
-                                      style={{ marginRight: 4 }}
-                                    />
-                                    {cfg.label || w.priority}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                            <td
-                              style={{
-                                color: 'var(--as-text-secondary)',
-                                fontFamily: 'var(--as-font-mono)',
-                                fontVariantNumeric: 'tabular-nums',
-                                fontSize: '0.8125rem',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {w.created_at?.substring(0, 10) || '—'}
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <div
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'flex-end',
-                                  gap: 6,
-                                }}
-                              >
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-small"
-                                  disabled={Boolean(analyzingId)}
-                                  onClick={() => handleAnalyze(w.id)}
-                                  aria-label={`Analyze feasibility for ${w.name}`}
-                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                >
-                                  {isAnalyzing ? (
-                                    <>
-                                      <Loader2
-                                        size={13}
-                                        strokeWidth={2.0}
-                                        className="animate-spin"
-                                        aria-hidden="true"
-                                        focusable="false"
-                                      />
-                                      <span>Analyzing...</span>
-                                    </>
-                                  ) : (
-                                    <span>Analyze</span>
-                                  )}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary btn-small"
-                                  disabled={isPurchasing}
-                                  onClick={() => handlePurchaseClick(w.id)}
-                                  aria-label={
-                                    isConfirming
-                                      ? `Confirm? Mark ${w.name} as purchased`
-                                      : `Bought: mark ${w.name} as purchased`
-                                  }
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: 4,
-                                    ...(isConfirming
-                                      ? {
-                                          borderColor: 'var(--as-status-success)',
-                                          color: 'var(--as-status-success)',
-                                        }
-                                      : {}),
-                                  }}
-                                >
-                                  <Check
-                                    size={14}
-                                    strokeWidth={2.0}
-                                    aria-hidden="true"
-                                    focusable="false"
-                                  />
-                                  <span>
-                                    {isPurchasing
-                                      ? 'Saving...'
-                                      : isConfirming
-                                      ? 'Confirm?'
-                                      : 'Bought'}
-                                  </span>
-                                </button>
-
-                                {isConfirming && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary btn-small"
-                                    onClick={() => setConfirmingPurchaseId(null)}
-                                    aria-label={`Cancel marking ${w.name} as purchased`}
-                                    style={{ padding: '4px 6px' }}
-                                  >
-                                    <X
+                                    <ExternalLink
                                       size={14}
                                       strokeWidth={2.0}
                                       aria-hidden="true"
                                       focusable="false"
                                     />
-                                  </button>
-                                )}
+                                  </a>
+                                  <div className="tooltip-bubble" role="tooltip">
+                                    <span>Open link</span>
+                                  </div>
+                                </div>
+                              )}
 
-                                <DeleteButton
-                                  onDelete={() => deleteWantItem(w.id)}
-                                  ariaLabel={`Delete want ${w.name}`}
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-small"
+                                disabled={Boolean(analyzingId)}
+                                onClick={() => handleAnalyze(w.id)}
+                                aria-label={`Analyze feasibility for ${w.name}`}
+                              >
+                                {isAnalyzing ? (
+                                  <>
+                                    <Loader2
+                                      size={13}
+                                      strokeWidth={2.0}
+                                      className="animate-spin"
+                                      aria-hidden="true"
+                                      focusable="false"
+                                    />
+                                    <span>Analyzing...</span>
+                                  </>
+                                ) : (
+                                  <span>Analyze</span>
+                                )}
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-small"
+                                disabled={isPurchasing}
+                                onClick={() => handlePurchaseClick(w.id)}
+                                aria-label={
+                                  isConfirming
+                                    ? `Confirm? Mark ${w.name} as purchased`
+                                    : `Bought: mark ${w.name} as purchased`
+                                }
+                                style={
+                                  isConfirming
+                                    ? {
+                                        borderColor: 'var(--as-status-success)',
+                                        color: 'var(--as-status-success)',
+                                      }
+                                    : undefined
+                                }
+                              >
+                                <Check
+                                  size={14}
+                                  strokeWidth={2.0}
+                                  aria-hidden="true"
+                                  focusable="false"
                                 />
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                <span>
+                                  {isPurchasing
+                                    ? 'Saving...'
+                                    : isConfirming
+                                    ? 'Confirm?'
+                                    : 'Bought'}
+                                </span>
+                              </button>
+
+                              {isConfirming && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-small"
+                                  onClick={() => setConfirmingPurchaseId(null)}
+                                  aria-label={`Cancel marking ${w.name} as purchased`}
+                                  style={{ padding: '0 8px' }}
+                                >
+                                  <X
+                                    size={14}
+                                    strokeWidth={2.0}
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  />
+                                </button>
+                              )}
+
+                              <DeleteButton
+                                onDelete={() => deleteWantItem(w.id)}
+                                ariaLabel={`Delete want ${w.name}`}
+                              />
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -854,26 +845,25 @@ export default function Wants() {
           {/* Purchased History */}
           {purchased.length > 0 && (
             <div className="card section">
-              <div
-                className="card-header"
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
-                <h3 style={{ display: 'flex', alignItems: 'center', margin: 0 }}>
+              <div className="card-header">
+                <h3>
                   <CheckCircle2
                     size={18}
                     strokeWidth={2.0}
                     aria-hidden="true"
                     focusable="false"
-                    style={{ marginRight: 6, color: 'var(--as-status-success)' }}
+                    style={{ color: 'var(--as-status-success)', flexShrink: 0 }}
                   />
                   <span>Purchased</span>
                 </h3>
-                <TableSearch
-                  searchQuery={purchasedTable.searchQuery}
-                  setSearchQuery={purchasedTable.setSearchQuery}
-                  isOpen={purchasedTable.searchOpen}
-                  setIsOpen={purchasedTable.setSearchOpen}
-                />
+                <div className="card-header-actions">
+                  <TableSearch
+                    searchQuery={purchasedTable.searchQuery}
+                    setSearchQuery={purchasedTable.setSearchQuery}
+                    isOpen={purchasedTable.searchOpen}
+                    setIsOpen={purchasedTable.setSearchOpen}
+                  />
+                </div>
               </div>
 
               {purchasedTable.data.length === 0 ? (
@@ -892,73 +882,74 @@ export default function Wants() {
                   </button>
                 </div>
               ) : (
-                <div className="scroll-table-wrapper">
-                  <div className="scroll-table-inner">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <TableHeader
-                            label="Item"
-                            sortKey="name"
-                            activeKey={purchasedTable.sortKey}
-                            activeDirection={purchasedTable.sortDirection}
-                            onClick={purchasedTable.requestSort}
-                          />
-                          <TableHeader
-                            label="Cost"
-                            sortKey="estimated_cost"
-                            activeKey={purchasedTable.sortKey}
-                            activeDirection={purchasedTable.sortDirection}
-                            onClick={purchasedTable.requestSort}
-                            style={{ textAlign: 'right' }}
-                          />
-                          <TableHeader
-                            label="Purchased"
-                            sortKey="purchased_at"
-                            activeKey={purchasedTable.sortKey}
-                            activeDirection={purchasedTable.sortDirection}
-                            onClick={purchasedTable.requestSort}
-                          />
-                          <th scope="col" style={{ width: 84, textAlign: 'right' }}>
-                            <span className="sr-only">Actions</span>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {purchasedTable.data.map((w) => (
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <TableHeader
+                          label="Item"
+                          sortKey="name"
+                          activeKey={purchasedTable.sortKey}
+                          activeDirection={purchasedTable.sortDirection}
+                          onClick={purchasedTable.requestSort}
+                        />
+                        <TableHeader
+                          label="Cost"
+                          sortKey="estimated_cost"
+                          activeKey={purchasedTable.sortKey}
+                          activeDirection={purchasedTable.sortDirection}
+                          onClick={purchasedTable.requestSort}
+                          style={{ textAlign: 'right' }}
+                        />
+                        <TableHeader
+                          label="Purchased"
+                          sortKey="purchased_at"
+                          activeKey={purchasedTable.sortKey}
+                          activeDirection={purchasedTable.sortDirection}
+                          onClick={purchasedTable.requestSort}
+                        />
+                        <th scope="col" className="col-actions">
+                          <span className="sr-only">Actions</span>
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchasedTable.data.map((w) => {
+                        const estCost = Number(w.estimated_cost);
+                        return (
                           <tr key={w.id}>
-                            <td style={{ fontWeight: 500 }}>{w.name}</td>
+                            <td style={{ fontWeight: 500, color: 'var(--as-text-primary)' }}>
+                              {w.name}
+                            </td>
                             <td
                               className="amount"
                               style={{
+                                color:
+                                  estCost < 0.005
+                                    ? 'var(--as-text-tertiary)'
+                                    : 'var(--as-text-primary)',
                                 fontFamily: 'var(--as-font-mono)',
                                 fontVariantNumeric: 'tabular-nums',
                               }}
                             >
-                              {fmt(Number(w.estimated_cost))}
+                              {fmt(estCost)}
                             </td>
-                            <td
-                              style={{
-                                color: 'var(--as-text-secondary)',
-                                fontFamily: 'var(--as-font-mono)',
-                                fontVariantNumeric: 'tabular-nums',
-                                fontSize: '0.8125rem',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
+                            <td className="cell-date">
                               {w.purchased_at?.substring(0, 10) || '—'}
                             </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <DeleteButton
-                                onDelete={() => deleteWantItem(w.id)}
-                                ariaLabel={`Delete purchased item ${w.name}`}
-                              />
+                            <td className="col-actions">
+                              <div className="row-actions-group">
+                                <DeleteButton
+                                  onDelete={() => deleteWantItem(w.id)}
+                                  ariaLabel={`Delete purchased item ${w.name}`}
+                                />
+                              </div>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1008,16 +999,22 @@ export default function Wants() {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="want-cost">Estimated Cost</label>
-                  <input
-                    id="want-cost"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={form.estimated_cost}
-                    onChange={(e) => setForm({ ...form, estimated_cost: e.target.value })}
-                    placeholder="0.00"
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="want-cost"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      className="has-unit-left"
+                      value={form.estimated_cost}
+                      onChange={(e) => setForm({ ...form, estimated_cost: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label htmlFor="want-priority">Priority</label>

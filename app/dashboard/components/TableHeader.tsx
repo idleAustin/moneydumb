@@ -59,6 +59,8 @@ export default function TableHeader({
     );
   };
 
+  const isRightAligned = style?.textAlign === 'right';
+
   return (
     <th
       scope="col"
@@ -74,9 +76,17 @@ export default function TableHeader({
       style={{ cursor: 'pointer', userSelect: 'none', ...style }}
       aria-sort={isSorted ? (activeDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
     >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: isRightAligned ? 'flex-end' : 'flex-start',
+          gap: '6px',
+        }}
+      >
+        {isRightAligned && renderSortIcon()}
         <span>{label}</span>
-        {renderSortIcon()}
+        {!isRightAligned && renderSortIcon()}
       </span>
     </th>
   );

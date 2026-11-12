@@ -49,10 +49,10 @@ export default function ForecastAndFlowDeck({
           }}
         >
           <div>
-            <h2 style={{ display: 'flex', alignItems: 'center', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-              <TrendingUp size={18} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
+            <h3>
+              <TrendingUp size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
               Daily Cash Flow Trajectory
-            </h2>
+            </h3>
             <span style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)' }}>
               Auto-scaled balance curve + 31-day interactive cash-burn heatmap across {MONTH_NAMES[viewMonth - 1]}
             </span>

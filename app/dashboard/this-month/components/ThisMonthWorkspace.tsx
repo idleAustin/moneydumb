@@ -348,7 +348,8 @@ export default function ThisMonthWorkspace({ defaultMemoryOnly = false }: ThisMo
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '4px 10px',
+                minHeight: 28,
+                padding: '0 10px',
                 borderRadius: 'var(--as-radius-pill)',
                 background: 'var(--as-bg-elevated)',
                 border: '1px solid var(--as-border-subtle)',
@@ -368,7 +369,8 @@ export default function ThisMonthWorkspace({ defaultMemoryOnly = false }: ThisMo
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 6,
-                padding: '4px 10px',
+                minHeight: 28,
+                padding: '0 10px',
                 borderRadius: 'var(--as-radius-pill)',
                 background: 'var(--as-bg-elevated)',
                 border: '1px solid var(--as-border-subtle)',
@@ -411,7 +413,8 @@ export default function ThisMonthWorkspace({ defaultMemoryOnly = false }: ThisMo
               tabIndex={activeWorkspaceTab === 'execute' ? 0 : -1}
               onClick={() => setActiveWorkspaceTab('execute')}
               style={{
-                padding: '5px 12px',
+                minHeight: 26,
+                padding: '0 12px',
                 borderRadius: 'var(--as-radius-sm)',
                 border: 'none',
                 background: activeWorkspaceTab === 'execute' ? 'var(--as-accent-muted)' : 'transparent',
@@ -440,7 +443,8 @@ export default function ThisMonthWorkspace({ defaultMemoryOnly = false }: ThisMo
               tabIndex={activeWorkspaceTab === 'forecast' ? 0 : -1}
               onClick={() => setActiveWorkspaceTab('forecast')}
               style={{
-                padding: '5px 12px',
+                minHeight: 26,
+                padding: '0 12px',
                 borderRadius: 'var(--as-radius-sm)',
                 border: 'none',
                 background: activeWorkspaceTab === 'forecast' ? 'var(--as-accent-muted)' : 'transparent',

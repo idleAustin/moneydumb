@@ -148,7 +148,8 @@ export default function VariantALedger({
                 color: hidePaid ? 'var(--as-accent-primary)' : 'var(--as-text-secondary)',
                 fontSize: '0.72rem',
                 fontWeight: 600,
-                padding: '4px 10px',
+                minHeight: 30,
+                padding: '0 10px',
                 borderRadius: 'var(--as-radius-sm)',
                 cursor: 'pointer',
                 display: 'inline-flex',
@@ -170,11 +171,14 @@ export default function VariantALedger({
                   background: 'var(--as-bg-elevated)',
                   border: '1px solid var(--as-border-subtle)',
                   color: 'var(--as-text-secondary)',
-                  fontSize: '0.7rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
-                  padding: '4px 8px',
+                  minHeight: 30,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-sm)',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 Expand All
@@ -188,11 +192,14 @@ export default function VariantALedger({
                   background: 'var(--as-bg-elevated)',
                   border: '1px solid var(--as-border-subtle)',
                   color: 'var(--as-text-secondary)',
-                  fontSize: '0.7rem',
+                  fontSize: '0.72rem',
                   fontWeight: 600,
-                  padding: '4px 8px',
+                  minHeight: 30,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-sm)',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 Collapse All
@@ -209,7 +216,8 @@ export default function VariantALedger({
             aria-pressed={selectedCategoryChip === 'ALL'}
             aria-label="Show all expense categories"
             style={{
-              padding: '4px 10px',
+              minHeight: 28,
+              padding: '0 10px',
               borderRadius: 'var(--as-radius-pill)',
               border: selectedCategoryChip === 'ALL' ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
               background: selectedCategoryChip === 'ALL' ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
@@ -218,6 +226,8 @@ export default function VariantALedger({
               fontWeight: 700,
               fontVariantNumeric: 'tabular-nums',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
             }}
           >
             All Bills ({fixedBills.length} • {fmtFull(fixedBills.reduce((s, b) => s + b.amount, 0))})
@@ -235,7 +245,8 @@ export default function VariantALedger({
                 aria-pressed={isActive}
                 aria-label={`Filter fixed bills by ${cat}`}
                 style={{
-                  padding: '4px 10px',
+                  minHeight: 28,
+                  padding: '0 10px',
                   borderRadius: 'var(--as-radius-pill)',
                   border: isActive ? '1px solid var(--as-accent-primary)' : '1px solid var(--as-border-subtle)',
                   background: isActive ? 'var(--as-accent-muted)' : 'var(--as-bg-elevated)',
@@ -244,6 +255,8 @@ export default function VariantALedger({
                   fontWeight: isActive ? 700 : 600,
                   fontVariantNumeric: 'tabular-nums',
                   cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
                 }}
               >
                 {cat} {paidInCat}/{catItems.length} ({fmtFull(catSum)})
@@ -403,7 +416,7 @@ export default function VariantALedger({
                   );
                 })}
               </div>
-              <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.78rem', fontWeight: 700, color: 'var(--as-status-warning)' }}>
+              <span style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.78rem', fontWeight: 700, color: debtObligations.reduce((s, d) => s + d.amount, 0) > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>
                 {fmtFull(debtObligations.reduce((s, d) => s + d.amount, 0))}
               </span>
             </div>

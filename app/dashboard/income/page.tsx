@@ -9,6 +9,7 @@ import useTable from '../hooks/useTable';
 import TableSearch from '../components/TableSearch';
 import TableHeader from '../components/TableHeader';
 import {
+  DollarSign,
   Wallet,
   Shuffle,
   Calendar,
@@ -376,13 +377,25 @@ export default function Income() {
     return s + Number(src.net_amount) * (mult[src.frequency] ?? 1);
   }, 0);
 
+  const bonusEventsCount = events.filter((e) => e.is_bonus).length;
   const canAddSplit = sources.length > 0 && accounts.length > 0;
 
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2>Income</h2>
-        <p>Configure recurring paychecks, account splits, and deposit history.</p>
+        <div>
+          <h2>
+            <DollarSign
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Income</span>
+          </h2>
+          <p>Configure recurring paychecks, account splits, and deposit history.</p>
+        </div>
       </div>
 
       {error && (
@@ -406,7 +419,7 @@ export default function Income() {
 
       {/* Stats */}
       <div className="card-grid-3 section">
-        <div className="stat-card">
+        <div className={`stat-card${!loading && Math.abs(monthlyIncome) < 0.005 ? ' stat-zero' : ''}`}>
           <div className="stat-label">Monthly Net Income</div>
           {loading ? (
             <div className="skeleton" style={{ height: 28, width: 120, marginTop: 6 }} />
@@ -414,7 +427,7 @@ export default function Income() {
             <div className="stat-value tabular-nums">{fmt(monthlyIncome)}</div>
           )}
         </div>
-        <div className="stat-card">
+        <div className={`stat-card${!loading && sources.length < 0.005 ? ' stat-zero' : ''}`}>
           <div className="stat-label">Income Sources</div>
           {loading ? (
             <div className="skeleton" style={{ height: 28, width: 64, marginTop: 6 }} />
@@ -422,14 +435,12 @@ export default function Income() {
             <div className="stat-value tabular-nums">{sources.length}</div>
           )}
         </div>
-        <div className="stat-card">
+        <div className={`stat-card${!loading && bonusEventsCount < 0.005 ? ' stat-zero' : ''}`}>
           <div className="stat-label">Bonus Events</div>
           {loading ? (
             <div className="skeleton" style={{ height: 28, width: 64, marginTop: 6 }} />
           ) : (
-            <div className="stat-value tabular-nums">
-              {events.filter((e) => e.is_bonus).length}
-            </div>
+            <div className="stat-value tabular-nums">{bonusEventsCount}</div>
           )}
         </div>
       </div>
@@ -437,7 +448,7 @@ export default function Income() {
       {/* Income Sources */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3>
             <Wallet
               size={16}
               strokeWidth={2.0}
@@ -445,9 +456,9 @@ export default function Income() {
               focusable="false"
               style={{ color: 'var(--as-text-secondary)' }}
             />
-            Paycheck Sources
+            <span>Paycheck Sources</span>
           </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="card-header-actions">
             <ExcelUpload
               templateName="income_sources_template.xlsx"
               templateColumns={[
@@ -510,11 +521,11 @@ export default function Income() {
             />
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary btn-small"
               onClick={() => setShowSourceModal(true)}
             >
               <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-              Add Source
+              <span>Add Source</span>
             </button>
           </div>
         </div>
@@ -559,107 +570,99 @@ export default function Income() {
             </button>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <TableHeader
-                      label="Name"
-                      sortKey="name"
-                      activeKey={sourcesTable.sortKey}
-                      activeDirection={sourcesTable.sortDirection}
-                      onClick={sourcesTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Gross"
-                      sortKey="gross_amount"
-                      activeKey={sourcesTable.sortKey}
-                      activeDirection={sourcesTable.sortDirection}
-                      onClick={sourcesTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Net"
-                      sortKey="net_amount"
-                      activeKey={sourcesTable.sortKey}
-                      activeDirection={sourcesTable.sortDirection}
-                      onClick={sourcesTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Frequency"
-                      sortKey="frequency"
-                      activeKey={sourcesTable.sortKey}
-                      activeDirection={sourcesTable.sortDirection}
-                      onClick={sourcesTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Next Pay Date"
-                      sortKey="next_pay_date"
-                      activeKey={sourcesTable.sortKey}
-                      activeDirection={sourcesTable.sortDirection}
-                      onClick={sourcesTable.requestSort}
-                    />
-                    <th scope="col" style={{ width: 100 }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sourcesTable.data.map((s) => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: 600 }}>
-                        <InlineEdit
-                          value={s.name}
-                          type="text"
-                          format="raw"
-                          onSave={async (v) => {
-                            await updateSourceItem(s.id, { name: String(v) });
-                          }}
-                        />
-                      </td>
-                      <td className="amount">
-                        <InlineEdit
-                          value={s.gross_amount}
-                          onSave={async (v) => {
-                            await updateSourceItem(s.id, { gross_amount: Number(v) });
-                          }}
-                        />
-                      </td>
-                      <td className="amount">
-                        <InlineEdit
-                          value={s.net_amount}
-                          onSave={async (v) => {
-                            await updateSourceItem(s.id, { net_amount: Number(v) });
-                          }}
-                        />
-                      </td>
-                      <td>
-                        <span className="badge badge-blue">
-                          {FREQUENCY_LABELS[s.frequency] || s.frequency}
-                        </span>
-                      </td>
-                      <td
-                        className="tabular-nums"
-                        style={{
-                          color: 'var(--as-text-secondary)',
-                          fontFamily: 'var(--as-font-mono)',
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TableHeader
+                    label="Name"
+                    sortKey="name"
+                    activeKey={sourcesTable.sortKey}
+                    activeDirection={sourcesTable.sortDirection}
+                    onClick={sourcesTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Gross"
+                    sortKey="gross_amount"
+                    activeKey={sourcesTable.sortKey}
+                    activeDirection={sourcesTable.sortDirection}
+                    onClick={sourcesTable.requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Net"
+                    sortKey="net_amount"
+                    activeKey={sourcesTable.sortKey}
+                    activeDirection={sourcesTable.sortDirection}
+                    onClick={sourcesTable.requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Frequency"
+                    sortKey="frequency"
+                    activeKey={sourcesTable.sortKey}
+                    activeDirection={sourcesTable.sortDirection}
+                    onClick={sourcesTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Next Pay Date"
+                    sortKey="next_pay_date"
+                    activeKey={sourcesTable.sortKey}
+                    activeDirection={sourcesTable.sortDirection}
+                    onClick={sourcesTable.requestSort}
+                  />
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sourcesTable.data.map((s) => (
+                  <tr key={s.id}>
+                    <td style={{ fontWeight: 600 }}>
+                      <InlineEdit
+                        value={s.name}
+                        type="text"
+                        format="raw"
+                        onSave={async (v) => {
+                          await updateSourceItem(s.id, { name: String(v) });
                         }}
-                      >
-                        {s.next_pay_date || '—'}
-                      </td>
-                      <td>
+                      />
+                    </td>
+                    <td className="amount">
+                      <InlineEdit
+                        value={s.gross_amount}
+                        onSave={async (v) => {
+                          await updateSourceItem(s.id, { gross_amount: Number(v) });
+                        }}
+                      />
+                    </td>
+                    <td className="amount">
+                      <InlineEdit
+                        value={s.net_amount}
+                        onSave={async (v) => {
+                          await updateSourceItem(s.id, { net_amount: Number(v) });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <span className="badge badge-blue">
+                        {FREQUENCY_LABELS[s.frequency] || s.frequency}
+                      </span>
+                    </td>
+                    <td className="cell-date">{s.next_pay_date || '—'}</td>
+                    <td className="col-actions">
+                      <div className="row-actions-group">
                         <DeleteButton
                           onDelete={() => deleteSourceItem(s.id)}
                           ariaLabel={`Delete income source ${s.name}`}
                         />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -667,7 +670,7 @@ export default function Income() {
       {/* Allocations */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3>
             <Shuffle
               size={16}
               strokeWidth={2.0}
@@ -675,9 +678,9 @@ export default function Income() {
               focusable="false"
               style={{ color: 'var(--as-text-secondary)' }}
             />
-            Paycheck Allocations
+            <span>Paycheck Allocations</span>
           </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="card-header-actions">
             <TableSearch
               searchQuery={allocationsTable.searchQuery}
               setSearchQuery={allocationsTable.setSearchQuery}
@@ -686,12 +689,12 @@ export default function Income() {
             />
             <button
               type="button"
-              className="btn btn-secondary btn-small"
+              className="btn btn-primary btn-small"
               onClick={() => setShowAllocModal(true)}
               disabled={!canAddSplit}
             >
               <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-              Add Split
+              <span>Add Split</span>
             </button>
           </div>
         </div>
@@ -756,77 +759,77 @@ export default function Income() {
             </button>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <TableHeader
-                      label="Source"
-                      sortKey="source"
-                      activeKey={allocationsTable.sortKey}
-                      activeDirection={allocationsTable.sortDirection}
-                      onClick={allocationsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Account"
-                      sortKey="account"
-                      activeKey={allocationsTable.sortKey}
-                      activeDirection={allocationsTable.sortDirection}
-                      onClick={allocationsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Type"
-                      sortKey="allocation_type"
-                      activeKey={allocationsTable.sortKey}
-                      activeDirection={allocationsTable.sortDirection}
-                      onClick={allocationsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Value"
-                      sortKey="allocation_value"
-                      activeKey={allocationsTable.sortKey}
-                      activeDirection={allocationsTable.sortDirection}
-                      onClick={allocationsTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <th scope="col" style={{ width: 100 }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allocationsTable.data.map((a) => {
-                    const sourceName =
-                      sources.find((s) => s.id === a.income_source_id)?.name || 'Unknown source';
-                    const accountName =
-                      accounts.find((ac) => ac.id === a.account_id)?.name || 'Unknown account';
-                    return (
-                      <tr key={a.id}>
-                        <td>{sourceName}</td>
-                        <td>{accountName}</td>
-                        <td>
-                          <span className="badge badge-purple">
-                            {SPLIT_TYPE_LABELS[a.allocation_type] || a.allocation_type}
-                          </span>
-                        </td>
-                        <td className="amount">
-                          {a.allocation_type === 'percent'
-                            ? `${Number(a.allocation_value).toFixed(2)}%`
-                            : fmt(a.allocation_value)}
-                        </td>
-                        <td>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TableHeader
+                    label="Source"
+                    sortKey="source"
+                    activeKey={allocationsTable.sortKey}
+                    activeDirection={allocationsTable.sortDirection}
+                    onClick={allocationsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Account"
+                    sortKey="account"
+                    activeKey={allocationsTable.sortKey}
+                    activeDirection={allocationsTable.sortDirection}
+                    onClick={allocationsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Type"
+                    sortKey="allocation_type"
+                    activeKey={allocationsTable.sortKey}
+                    activeDirection={allocationsTable.sortDirection}
+                    onClick={allocationsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Value"
+                    sortKey="allocation_value"
+                    activeKey={allocationsTable.sortKey}
+                    activeDirection={allocationsTable.sortDirection}
+                    onClick={allocationsTable.requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {allocationsTable.data.map((a) => {
+                  const sourceName =
+                    sources.find((s) => s.id === a.income_source_id)?.name || 'Unknown source';
+                  const accountName =
+                    accounts.find((ac) => ac.id === a.account_id)?.name || 'Unknown account';
+                  return (
+                    <tr key={a.id}>
+                      <td>{sourceName}</td>
+                      <td>{accountName}</td>
+                      <td>
+                        <span className="badge badge-purple">
+                          {SPLIT_TYPE_LABELS[a.allocation_type] || a.allocation_type}
+                        </span>
+                      </td>
+                      <td className="amount">
+                        {a.allocation_type === 'percent'
+                          ? `${Number(a.allocation_value).toFixed(2)}%`
+                          : fmt(a.allocation_value)}
+                      </td>
+                      <td className="col-actions">
+                        <div className="row-actions-group">
                           <DeleteButton
                             onDelete={() => deleteAllocItem(a.id)}
                             ariaLabel={`Delete allocation split from ${sourceName} to ${accountName}`}
                           />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -834,7 +837,7 @@ export default function Income() {
       {/* Income Events */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h3>
             <Calendar
               size={16}
               strokeWidth={2.0}
@@ -842,9 +845,9 @@ export default function Income() {
               focusable="false"
               style={{ color: 'var(--as-text-secondary)' }}
             />
-            Income Events
+            <span>Income Events</span>
           </h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div className="card-header-actions">
             <TableSearch
               searchQuery={eventsTable.searchQuery}
               setSearchQuery={eventsTable.setSearchQuery}
@@ -853,11 +856,11 @@ export default function Income() {
             />
             <button
               type="button"
-              className="btn btn-secondary btn-small"
+              className="btn btn-primary btn-small"
               onClick={() => setShowEventModal(true)}
             >
               <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-              Log Income
+              <span>Log Income</span>
             </button>
           </div>
         </div>
@@ -899,142 +902,134 @@ export default function Income() {
             </button>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <TableHeader
-                      label="Date"
-                      sortKey="received_date"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Source"
-                      sortKey="source"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Amount"
-                      sortKey="amount"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                      style={{ textAlign: 'right' }}
-                    />
-                    <TableHeader
-                      label="Bank Account"
-                      sortKey="account"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Type"
-                      sortKey="is_bonus"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                    />
-                    <TableHeader
-                      label="Notes"
-                      sortKey="notes"
-                      activeKey={eventsTable.sortKey}
-                      activeDirection={eventsTable.sortDirection}
-                      onClick={eventsTable.requestSort}
-                    />
-                    <th scope="col" style={{ width: 100 }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {eventsTable.data.map((e) => {
-                    const sourceLabel =
-                      sources.find((s) => s.id === e.income_source_id)?.name || 'One-time';
-                    return (
-                      <tr key={e.id}>
-                        <td
-                          className="tabular-nums"
-                          style={{
-                            color: 'var(--as-text-secondary)',
-                            fontFamily: 'var(--as-font-mono)',
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <TableHeader
+                    label="Date"
+                    sortKey="received_date"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Source"
+                    sortKey="source"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Amount"
+                    sortKey="amount"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                    style={{ textAlign: 'right' }}
+                  />
+                  <TableHeader
+                    label="Bank Account"
+                    sortKey="account"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Type"
+                    sortKey="is_bonus"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                  />
+                  <TableHeader
+                    label="Notes"
+                    sortKey="notes"
+                    activeKey={eventsTable.sortKey}
+                    activeDirection={eventsTable.sortDirection}
+                    onClick={eventsTable.requestSort}
+                  />
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {eventsTable.data.map((e) => {
+                  const sourceLabel =
+                    sources.find((s) => s.id === e.income_source_id)?.name || 'One-time';
+                  return (
+                    <tr key={e.id}>
+                      <td className="cell-date">{e.received_date}</td>
+                      <td>{sourceLabel}</td>
+                      <td className="amount" style={{ color: 'var(--as-status-success)' }}>
+                        <InlineEdit
+                          value={e.amount}
+                          onSave={async (v) => {
+                            await updateEventItem(e.id, { amount: Number(v) });
                           }}
+                        />
+                      </td>
+                      <td>
+                        <select
+                          value={e.account_id || ''}
+                          className="inline-table-select"
+                          onChange={async (ev) => {
+                            await updateEventItem(e.id, {
+                              account_id: ev.target.value || null,
+                            });
+                          }}
+                          aria-label={`Bank account for ${sourceLabel} income on ${e.received_date}`}
                         >
-                          {e.received_date}
-                        </td>
-                        <td>{sourceLabel}</td>
-                        <td className="amount" style={{ color: 'var(--as-status-success)' }}>
-                          <InlineEdit
-                            value={e.amount}
-                            onSave={async (v) => {
-                              await updateEventItem(e.id, { amount: Number(v) });
-                            }}
-                          />
-                        </td>
-                        <td>
-                          <select
-                            value={e.account_id || ''}
-                            className="inline-table-select"
-                            onChange={async (ev) => {
-                              await updateEventItem(e.id, {
-                                account_id: ev.target.value || null,
-                              });
-                            }}
-                            aria-label={`Bank account for ${sourceLabel} income on ${e.received_date}`}
+                          <option value="">Unassigned</option>
+                          {accounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        {e.is_bonus ? (
+                          <span
+                            className="badge badge-amber"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
                           >
-                            <option value="">Unassigned</option>
-                            {accounts.map((a) => (
-                              <option key={a.id} value={a.id}>
-                                {a.name}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td>
-                          {e.is_bonus ? (
-                            <span
-                              className="badge badge-amber"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                            >
-                              <Sparkles
-                                size={13}
-                                strokeWidth={2.0}
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                              Bonus
-                            </span>
-                          ) : (
-                            <span className="badge badge-blue">Regular</span>
-                          )}
-                        </td>
-                        <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
-                          <InlineEdit
-                            value={e.notes || ''}
-                            type="text"
-                            format="raw"
-                            onSave={async (v) => {
-                              await updateEventItem(e.id, { notes: String(v) || null });
-                            }}
-                          />
-                        </td>
-                        <td>
+                            <Sparkles
+                              size={13}
+                              strokeWidth={2.0}
+                              aria-hidden="true"
+                              focusable="false"
+                            />
+                            Bonus
+                          </span>
+                        ) : (
+                          <span className="badge badge-blue">Regular</span>
+                        )}
+                      </td>
+                      <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
+                        <InlineEdit
+                          value={e.notes || ''}
+                          type="text"
+                          format="raw"
+                          onSave={async (v) => {
+                            await updateEventItem(e.id, { notes: String(v) || null });
+                          }}
+                        />
+                      </td>
+                      <td className="col-actions">
+                        <div className="row-actions-group">
                           <DeleteButton
                             onDelete={() => deleteEventItem(e.id)}
                             ariaLabel={`Delete ${sourceLabel} income event on ${e.received_date}`}
                           />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -1064,29 +1059,43 @@ export default function Income() {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="source-gross">Gross Pay</label>
-                  <input
-                    id="source-gross"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={sourceForm.gross_amount}
-                    onChange={(e) =>
-                      setSourceForm({ ...sourceForm, gross_amount: e.target.value })
-                    }
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="source-gross"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      className="has-unit-left"
+                      value={sourceForm.gross_amount}
+                      onChange={(e) =>
+                        setSourceForm({ ...sourceForm, gross_amount: e.target.value })
+                      }
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label htmlFor="source-net">Net Pay (Take Home)</label>
-                  <input
-                    id="source-net"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={sourceForm.net_amount}
-                    onChange={(e) => setSourceForm({ ...sourceForm, net_amount: e.target.value })}
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="source-net"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      className="has-unit-left"
+                      value={sourceForm.net_amount}
+                      onChange={(e) => setSourceForm({ ...sourceForm, net_amount: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="form-row">
@@ -1213,18 +1222,34 @@ export default function Income() {
                   <label htmlFor="alloc-value">
                     {allocForm.allocation_type === 'percent' ? 'Percent (0–100)' : 'Fixed Amount'}
                   </label>
-                  <input
-                    id="alloc-value"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={allocForm.allocation_type === 'percent' ? '100' : undefined}
-                    required
-                    value={allocForm.allocation_value}
-                    onChange={(e) =>
-                      setAllocForm({ ...allocForm, allocation_value: e.target.value })
-                    }
-                  />
+                  <div className="input-unit-wrap">
+                    {allocForm.allocation_type === 'fixed' && (
+                      <span className="input-unit-left" aria-hidden="true">
+                        $
+                      </span>
+                    )}
+                    <input
+                      id="alloc-value"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max={allocForm.allocation_type === 'percent' ? '100' : undefined}
+                      required
+                      placeholder="0.00"
+                      className={
+                        allocForm.allocation_type === 'percent' ? 'has-unit-right' : 'has-unit-left'
+                      }
+                      value={allocForm.allocation_value}
+                      onChange={(e) =>
+                        setAllocForm({ ...allocForm, allocation_value: e.target.value })
+                      }
+                    />
+                    {allocForm.allocation_type === 'percent' && (
+                      <span className="input-unit-right" aria-hidden="true">
+                        %
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="modal-actions">
@@ -1276,15 +1301,22 @@ export default function Income() {
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="event-amount">Amount</label>
-                  <input
-                    id="event-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    required
-                    value={eventForm.amount}
-                    onChange={(e) => setEventForm({ ...eventForm, amount: e.target.value })}
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="event-amount"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      required
+                      placeholder="0.00"
+                      className="has-unit-left"
+                      value={eventForm.amount}
+                      onChange={(e) => setEventForm({ ...eventForm, amount: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label htmlFor="event-date">Date Received</label>

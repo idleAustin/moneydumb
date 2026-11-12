@@ -7,6 +7,7 @@ import {
   PiggyBank,
   TrendingUp,
   AlertCircle,
+  Plus,
 } from 'lucide-react';
 import DeleteButton from '../components/DeleteButton';
 import InlineEdit from '../components/InlineEdit';
@@ -194,8 +195,19 @@ export default function Accounts() {
   return (
     <div className="fade-in">
       <div className="page-header">
-        <h2>Bank Accounts</h2>
-        <p>Track checking, savings, and investment balances across your institutions.</p>
+        <div>
+          <h2>
+            <Landmark
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>Accounts</span>
+          </h2>
+          <p>Track checking, savings, and investment balances across your institutions.</p>
+        </div>
       </div>
 
       {error && (
@@ -261,14 +273,21 @@ export default function Accounts() {
       ) : (
         <>
           <div className="card-grid-3 section">
-            <div className={`stat-card ${totalBalance < 0 ? 'stat-red' : 'stat-green'}`}>
+            <div
+              className={`stat-card ${
+                totalBalance < -0.005
+                  ? 'stat-red'
+                  : totalBalance > 0.005
+                  ? 'stat-green'
+                  : 'stat-zero'
+              }`}
+            >
               <div className="stat-label">Total Balance</div>
               <div
                 className="stat-value"
                 style={{
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
-                  ...(totalBalance < 0 ? { color: 'var(--as-status-error)' } : {}),
                 }}
               >
                 {fmt(totalBalance)}
@@ -284,27 +303,41 @@ export default function Accounts() {
                 {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
               </div>
             </div>
-            <div className="stat-card stat-blue">
+            <div
+              className={`stat-card ${
+                checkingTotal < -0.005
+                  ? 'stat-red'
+                  : Math.abs(checkingTotal) < 0.005
+                  ? 'stat-zero'
+                  : ''
+              }`}
+            >
               <div className="stat-label">Checking</div>
               <div
                 className="stat-value"
                 style={{
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
-                  ...(checkingTotal < 0 ? { color: 'var(--as-status-error)' } : {}),
                 }}
               >
                 {fmt(checkingTotal)}
               </div>
             </div>
-            <div className="stat-card stat-purple">
+            <div
+              className={`stat-card ${
+                savingsTotal < -0.005
+                  ? 'stat-red'
+                  : Math.abs(savingsTotal) < 0.005
+                  ? 'stat-zero'
+                  : ''
+              }`}
+            >
               <div className="stat-label">Savings &amp; Investments</div>
               <div
                 className="stat-value"
                 style={{
                   fontFamily: 'var(--as-font-mono)',
                   fontVariantNumeric: 'tabular-nums',
-                  ...(savingsTotal < 0 ? { color: 'var(--as-status-error)' } : {}),
                 }}
               >
                 {fmt(savingsTotal)}
@@ -315,7 +348,7 @@ export default function Accounts() {
           <div className="card">
             <div className="card-header">
               <h3>All Accounts</h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <div className="card-header-actions">
                 <ExcelUpload
                   templateName="accounts_template.xlsx"
                   templateColumns={[
@@ -359,25 +392,24 @@ export default function Accounts() {
                   }}
                 />
                 {accounts.length > 0 && (
-                  <>
-                    <TableSearch
-                      searchQuery={searchQuery}
-                      setSearchQuery={setSearchQuery}
-                      isOpen={searchOpen}
-                      setIsOpen={setSearchOpen}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => {
-                        setFormError(null);
-                        setShowModal(true);
-                      }}
-                    >
-                      + Add Account
-                    </button>
-                  </>
+                  <TableSearch
+                    searchQuery={searchQuery}
+                    setSearchQuery={setSearchQuery}
+                    isOpen={searchOpen}
+                    setIsOpen={setSearchOpen}
+                  />
                 )}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setFormError(null);
+                    setShowModal(true);
+                  }}
+                >
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Account</span>
+                </button>
               </div>
             </div>
 
@@ -402,7 +434,8 @@ export default function Accounts() {
                     setShowModal(true);
                   }}
                 >
-                  + Add Account
+                  <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                  <span>Add Account</span>
                 </button>
               </div>
             ) : filteredAndSortedAccounts.length === 0 ? (
@@ -421,71 +454,64 @@ export default function Accounts() {
                 </button>
               </div>
             ) : (
-              <div className="scroll-table-wrapper">
-                <div className="scroll-table-inner">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <TableHeader
-                          label="Account"
-                          sortKey="name"
-                          activeKey={sortKey}
-                          activeDirection={sortDirection}
-                          onClick={requestSort}
-                        />
-                        <TableHeader
-                          label="Type"
-                          sortKey="account_type"
-                          activeKey={sortKey}
-                          activeDirection={sortDirection}
-                          onClick={requestSort}
-                        />
-                        <TableHeader
-                          label="Balance"
-                          sortKey="balance"
-                          activeKey={sortKey}
-                          activeDirection={sortDirection}
-                          onClick={requestSort}
-                          style={{ textAlign: 'right' }}
-                        />
-                        <TableHeader
-                          label="Last Updated"
-                          sortKey="balance_updated_at"
-                          activeKey={sortKey}
-                          activeDirection={sortDirection}
-                          onClick={requestSort}
-                        />
-                        <TableHeader
-                          label="Notes"
-                          sortKey="notes"
-                          activeKey={sortKey}
-                          activeDirection={sortDirection}
-                          onClick={requestSort}
-                        />
-                        <th scope="col" style={{ width: 96, textAlign: 'right' }}>
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredAndSortedAccounts.map((a) => {
-                        const bal = Number(a.balance);
-                        const badgeVariant =
-                          a.account_type === 'checking'
-                            ? 'blue'
-                            : a.account_type === 'savings'
-                            ? 'green'
-                            : 'purple';
-                        return (
-                          <tr key={a.id}>
-                            <td style={{ fontWeight: 600 }}>
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <TableHeader
+                        label="Account"
+                        sortKey="name"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Type"
+                        sortKey="account_type"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Balance"
+                        sortKey="balance"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                        style={{ textAlign: 'right' }}
+                      />
+                      <TableHeader
+                        label="Last Updated"
+                        sortKey="balance_updated_at"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <TableHeader
+                        label="Notes"
+                        sortKey="notes"
+                        activeKey={sortKey}
+                        activeDirection={sortDirection}
+                        onClick={requestSort}
+                      />
+                      <th scope="col" className="col-actions">
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAndSortedAccounts.map((a) => {
+                      const bal = Number(a.balance);
+                      return (
+                        <tr key={a.id}>
+                          <td style={{ fontWeight: 600 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                               <span
                                 style={{
-                                  marginRight: 6,
-                                  verticalAlign: 'middle',
                                   display: 'inline-flex',
                                   alignItems: 'center',
                                   color: 'var(--as-text-secondary)',
+                                  flexShrink: 0,
                                 }}
                               >
                                 {typeIcons[a.account_type] || (
@@ -496,7 +522,7 @@ export default function Accounts() {
                                     focusable="false"
                                   />
                                 )}
-                              </span>{' '}
+                              </span>
                               <InlineEdit
                                 value={a.name}
                                 type="text"
@@ -506,93 +532,68 @@ export default function Accounts() {
                                   await updateAccountItem(a, { name: String(val) });
                                 }}
                               />
-                            </td>
-                            <td>
-                              <select
-                                aria-label={`Edit account type for ${a.name}`}
-                                value={a.account_type}
-                                disabled={updatingId === a.id}
-                                onChange={(e) =>
-                                  updateAccountItem(a, {
-                                    account_type: e.target.value as Account['account_type'],
-                                  })
-                                }
-                                className={`badge badge-${badgeVariant}`}
-                                style={{
-                                  cursor: 'pointer',
-                                  fontFamily: 'inherit',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 600,
-                                  padding: '4px 10px',
-                                  borderRadius: 'var(--as-radius-pill)',
-                                  backgroundColor: 'var(--as-bg-elevated)',
-                                  color:
-                                    a.account_type === 'checking'
-                                      ? 'var(--as-status-info)'
-                                      : a.account_type === 'savings'
-                                      ? 'var(--as-status-success)'
-                                      : 'var(--as-text-primary)',
-                                  border: '1px solid var(--as-border-subtle)',
-                                  width: 'auto',
-                                  height: 'auto',
-                                  minHeight: 30,
-                                }}
-                              >
-                                <option value="checking">{ACCOUNT_TYPE_LABELS.checking}</option>
-                                <option value="savings">{ACCOUNT_TYPE_LABELS.savings}</option>
-                                <option value="investment">{ACCOUNT_TYPE_LABELS.investment}</option>
-                              </select>
-                            </td>
-                            <td
-                              className="amount"
-                              style={{
-                                fontFamily: 'var(--as-font-mono)',
-                                fontVariantNumeric: 'tabular-nums',
-                                ...(bal < 0 ? { color: 'var(--as-status-error)' } : {}),
-                              }}
+                            </div>
+                          </td>
+                          <td>
+                            <select
+                              aria-label={`Edit account type for ${a.name}`}
+                              value={a.account_type}
+                              disabled={updatingId === a.id}
+                              onChange={(e) =>
+                                updateAccountItem(a, {
+                                  account_type: e.target.value as Account['account_type'],
+                                })
+                              }
+                              className="inline-table-select"
                             >
-                              <InlineEdit
-                                value={a.balance}
-                                ariaLabel={`Edit balance for ${a.name}`}
-                                onSave={async (val) => {
-                                  await updateAccountItem(a, { balance: Number(val) });
-                                }}
-                              />
-                            </td>
-                            <td
-                              style={{
-                                color: 'var(--as-text-secondary)',
-                                fontFamily: 'var(--as-font-mono)',
-                                fontVariantNumeric: 'tabular-nums',
-                                fontSize: '0.8125rem',
-                                whiteSpace: 'nowrap',
+                              <option value="checking">{ACCOUNT_TYPE_LABELS.checking}</option>
+                              <option value="savings">{ACCOUNT_TYPE_LABELS.savings}</option>
+                              <option value="investment">{ACCOUNT_TYPE_LABELS.investment}</option>
+                            </select>
+                          </td>
+                          <td
+                            className="amount"
+                            style={{
+                              fontFamily: 'var(--as-font-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                              ...(bal < -0.005 ? { color: 'var(--as-status-error)' } : {}),
+                            }}
+                          >
+                            <InlineEdit
+                              value={a.balance}
+                              ariaLabel={`Edit balance for ${a.name}`}
+                              onSave={async (val) => {
+                                await updateAccountItem(a, { balance: Number(val) });
                               }}
-                            >
-                              {fmtDate(a.balance_updated_at) || '—'}
-                            </td>
-                            <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
-                              <InlineEdit
-                                value={a.notes || ''}
-                                type="text"
-                                format="raw"
-                                ariaLabel={`Edit notes for ${a.name}`}
-                                onSave={async (val) => {
-                                  await updateAccountItem(a, { notes: String(val) || null });
-                                }}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
+                            />
+                          </td>
+                          <td className="cell-date">
+                            {fmtDate(a.balance_updated_at) || '—'}
+                          </td>
+                          <td style={{ color: 'var(--as-text-secondary)', fontSize: '0.85rem' }}>
+                            <InlineEdit
+                              value={a.notes || ''}
+                              type="text"
+                              format="raw"
+                              ariaLabel={`Edit notes for ${a.name}`}
+                              onSave={async (val) => {
+                                await updateAccountItem(a, { notes: String(val) || null });
+                              }}
+                            />
+                          </td>
+                          <td className="col-actions">
+                            <div className="row-actions-group">
                               <DeleteButton
                                 onDelete={() => deleteAccountItem(a.id)}
                                 ariaLabel={`Delete account ${a.name}`}
                               />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -661,14 +662,20 @@ export default function Accounts() {
                 </div>
                 <div className="form-group">
                   <label htmlFor="account-balance">Current Balance</label>
-                  <input
-                    id="account-balance"
-                    type="number"
-                    step="0.01"
-                    value={form.balance}
-                    onChange={(e) => setForm({ ...form, balance: e.target.value })}
-                    placeholder="0.00"
-                  />
+                  <div className="input-unit-wrap">
+                    <span className="input-unit-left" aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="account-balance"
+                      type="number"
+                      step="0.01"
+                      className="has-unit-left"
+                      value={form.balance}
+                      onChange={(e) => setForm({ ...form, balance: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="form-group">

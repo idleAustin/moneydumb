@@ -89,7 +89,7 @@ export default function PrototypeSwitcher({
         <span aria-hidden="true" style={{ color: 'var(--as-border-strong)' }}>/</span>
         <span>
           Safe:{' '}
-          <strong style={{ color: safeCash < 0 ? 'var(--as-status-error)' : 'var(--as-status-info)' }}>
+          <strong style={{ color: Math.abs(safeCash) < 0.005 ? 'var(--as-text-secondary)' : safeCash < 0 ? 'var(--as-status-error)' : 'var(--as-status-info)' }}>
             {fmt(safeCash)}
           </strong>
         </span>
@@ -103,7 +103,8 @@ export default function PrototypeSwitcher({
         aria-label={memoryOnly ? 'Switch to Live DB persistence mode' : 'Switch to In-Memory prototype mode'}
         title={memoryOnly ? 'Currently in-memory only. Click to persist to DB.' : 'Currently syncing to DB. Click for in-memory mode.'}
         style={{
-          padding: '5px 11px',
+          minHeight: 28,
+          padding: '0 11px',
           borderRadius: 'var(--as-radius-pill)',
           border: '1px solid var(--as-border-subtle)',
           background: memoryOnly ? 'var(--as-status-warning-bg)' : 'var(--as-status-success-bg)',
@@ -140,7 +141,8 @@ export default function PrototypeSwitcher({
         aria-label={confirmingReset ? 'Confirm loading benchmark demo dataset' : 'Load benchmark demo dataset in memory'}
         title={confirmingReset ? 'Click again to confirm demo dataset load, or press Escape to cancel' : 'Load benchmark demo dataset'}
         style={{
-          padding: '5px 10px',
+          minHeight: 28,
+          padding: '0 11px',
           borderRadius: 'var(--as-radius-pill)',
           border: confirmingReset ? '1px solid var(--as-status-warning)' : '1px solid var(--as-border-subtle)',
           background: confirmingReset ? 'var(--as-status-warning-bg)' : 'var(--as-bg-surface)',

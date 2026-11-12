@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   ArrowLeft,
   Landmark,
+  Plus,
 } from 'lucide-react';
 import { getAuthUserId } from '@/app/lib/auth';
 import {
@@ -37,38 +38,27 @@ export default async function DailyAudit() {
 
   return (
     <div className="fade-in">
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-        }}
-      >
+      <div className="page-header">
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center' }}>
+          <h2>
             <ClipboardCheck
               size={20}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
             />
             <span>Daily Balance Audit</span>
           </h2>
           <p>Enter actual balances from your banking apps to reconcile safe-to-spend cash.</p>
         </div>
 
-        <Link
-          href="/dashboard/this-month"
-          className="btn btn-secondary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-          <span>Back to This Month</span>
-        </Link>
+        <div className="page-header-actions">
+          <Link href="/dashboard/this-month" className="btn btn-secondary">
+            <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Back to This Month</span>
+          </Link>
+        </div>
       </div>
 
       <div className="card section" style={{ maxWidth: 720 }}>
@@ -96,7 +86,8 @@ export default async function DailyAudit() {
             <h3>No accounts to reconcile</h3>
             <p>Add at least one checking or savings account before running a balance audit.</p>
             <Link href="/dashboard/accounts" className="btn btn-primary">
-              + Add Account
+              <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Add Account</span>
             </Link>
           </div>
         ) : (
@@ -144,7 +135,9 @@ export default async function DailyAudit() {
                         <span
                           style={{
                             color:
-                              current < 0 ? 'var(--as-status-error)' : 'var(--as-text-secondary)',
+                              current < -0.005
+                                ? 'var(--as-status-error)'
+                                : 'var(--as-text-secondary)',
                           }}
                         >
                           {fmtCurrency(current)}
@@ -153,19 +146,25 @@ export default async function DailyAudit() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 0, width: 220 }}>
-                      <input
-                        id={`balance_${bank.id}`}
-                        name={`balance_${bank.id}`}
-                        type="number"
-                        step="0.01"
-                        required
-                        defaultValue={current.toFixed(2)}
-                        style={{
-                          fontFamily: 'var(--as-font-mono)',
-                          fontVariantNumeric: 'tabular-nums',
-                          textAlign: 'right',
-                        }}
-                      />
+                      <div className="input-unit-wrap">
+                        <span className="input-unit-left" aria-hidden="true">
+                          $
+                        </span>
+                        <input
+                          id={`balance_${bank.id}`}
+                          name={`balance_${bank.id}`}
+                          type="number"
+                          step="0.01"
+                          required
+                          className="has-unit-left"
+                          defaultValue={current.toFixed(2)}
+                          style={{
+                            fontFamily: 'var(--as-font-mono)',
+                            fontVariantNumeric: 'tabular-nums',
+                            textAlign: 'right',
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 );

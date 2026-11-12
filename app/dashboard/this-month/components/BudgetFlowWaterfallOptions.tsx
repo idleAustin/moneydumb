@@ -133,10 +133,10 @@ export default function BudgetFlowWaterfallOptions({
     <div className="card">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-            <BarChart3 size={17} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ marginRight: 6, color: 'var(--as-accent-primary)' }} />
+          <h3>
+            <BarChart3 size={16} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-accent-primary)' }} />
             Budget Flow Waterfall
-          </h2>
+          </h3>
           <span style={{ fontSize: '0.75rem', color: 'var(--as-text-secondary)' }}>
             {MONTH_NAMES[viewMonth - 1]} cash bridge into {nextMonthName} {nextYear} • Expand any category row to inspect bills
           </span>
@@ -144,55 +144,43 @@ export default function BudgetFlowWaterfallOptions({
       </div>
 
       {/* Top Summary Telemetry Strip (recessed --as-bg-base inside card) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(145px, 1fr))',
-          gap: 10,
-          marginBottom: 14,
-          padding: '10px 12px',
-          background: 'var(--as-bg-base)',
-          borderRadius: 'var(--as-radius-md)',
-          border: '1px solid var(--as-border-subtle)',
-        }}
-      >
+      <div className="tm-waterfall-kpi-grid">
         <div>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Starting Cash + Inbound</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-text-primary)', marginTop: 2 }}>
-            {fmtFull(startingBalance)} <span style={{ color: 'var(--as-accent-primary)', fontSize: '0.76rem' }}>+{fmtFull(totalIncome)}</span>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.92rem', fontWeight: 700, color: 'var(--as-text-primary)', marginTop: 2 }}>
+            {fmtFull(startingBalance)} <span style={{ color: totalIncome > 0.005 ? 'var(--as-accent-primary)' : 'var(--as-text-tertiary)', fontSize: '0.76rem' }}>{totalIncome > 0.005 ? `+${fmtFull(totalIncome)}` : fmtFull(0)}</span>
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Peak Monthly Cash Pool</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: 'var(--as-status-info)', marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.92rem', fontWeight: 700, color: Math.abs(startingBalance + totalIncome) < 0.005 ? 'var(--as-text-tertiary)' : 'var(--as-status-info)', marginTop: 2 }}>
             {fmtFull(startingBalance + totalIncome)}
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Paid vs. Remaining Outflow</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.84rem', fontWeight: 700, marginTop: 2 }}>
-            <span style={{ color: 'var(--as-status-success)' }}>{fmt(totalPaidOutflow)} paid</span>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.92rem', fontWeight: 700, marginTop: 2 }}>
+            <span style={{ color: totalPaidOutflow > 0.005 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)' }}>{fmt(totalPaidOutflow)} paid</span>
             <span style={{ color: 'var(--as-text-tertiary)' }}> / </span>
-            <span style={{ color: 'var(--as-status-warning)' }}>{fmt(totalUnpaidOutflow)} left</span>
+            <span style={{ color: totalUnpaidOutflow > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmt(totalUnpaidOutflow)} left</span>
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Net Monthly Cash Delta</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.9rem', fontWeight: 700, color: netMonthlyChange >= 0 ? 'var(--as-status-success)' : 'var(--as-status-error)', marginTop: 2 }}>
-            {netMonthlyChange >= 0 ? `+${fmtFull(netMonthlyChange)}` : fmtFull(netMonthlyChange)}
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.92rem', fontWeight: 700, color: Math.abs(netMonthlyChange) < 0.005 ? 'var(--as-text-tertiary)' : netMonthlyChange > 0 ? 'var(--as-status-success)' : 'var(--as-status-error)', marginTop: 2 }}>
+            {Math.abs(netMonthlyChange) < 0.005 ? fmtFull(0) : netMonthlyChange > 0 ? `+${fmtFull(netMonthlyChange)}` : fmtFull(netMonthlyChange)}
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--as-text-tertiary)' }}>Projected {nextMonthName} 1st Start</div>
-          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.95rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)', marginTop: 2 }}>
+          <div style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.92rem', fontWeight: 700, color: Math.abs(endBalance) < 0.005 ? 'var(--as-text-tertiary)' : endBalance > 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)', marginTop: 2 }}>
             {fmtFull(endBalance)}
           </div>
         </div>
       </div>
 
       {/* LOCKED-IN OPTION B: 8-Column Category Allocation & Burn Matrix Table */}
-      <div className="scroll-table-wrapper">
-        <div className="scroll-table-inner" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div className="table-responsive">
           <table className="data-table" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
             <thead>
               <tr>
@@ -252,8 +240,8 @@ export default function BudgetFlowWaterfallOptions({
                         </button>
                       </td>
                       <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.72rem', color: 'var(--as-text-secondary)' }}>{b.paidCount}/{b.count}</td>
-                      <td className="amount" style={{ color: 'var(--as-status-success)' }}>{fmtFull(b.paid)}</td>
-                      <td className="amount" style={{ color: b.unpaid > 0 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmtFull(b.unpaid)}</td>
+                      <td className="amount" style={{ color: b.paid > 0.005 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)' }}>{fmtFull(b.paid)}</td>
+                      <td className="amount" style={{ color: b.unpaid > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmtFull(b.unpaid)}</td>
                       <td className="amount" style={{ fontWeight: 700, color: b.kind === 'debt' ? 'var(--as-status-warning)' : 'var(--as-status-error)' }}>−{fmtFull(b.total)}</td>
                       <td className="amount" style={{ color: 'var(--as-text-secondary)' }}>{pctIncome.toFixed(1)}%</td>
                       <td>
@@ -300,21 +288,24 @@ export default function BudgetFlowWaterfallOptions({
                   </Fragment>
                 );
               })}
-              <tr style={{ background: 'var(--as-bg-elevated)' }}>
+            </tbody>
+            <tfoot>
+              <tr>
                 <td style={{ fontWeight: 700, color: 'var(--as-accent-primary)' }}>= Projected Start of {nextMonthName}</td>
                 <td style={{ textAlign: 'center', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', color: 'var(--as-text-secondary)' }}>
                   {unifiedObligations.filter((o) => o.isPaid).length}/{unifiedObligations.length}
                 </td>
-                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-success)' }}>{fmtFull(totalPaidOutflow)}</td>
-                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-warning)' }}>{fmtFull(totalUnpaidOutflow)}</td>
-                <td className="amount" style={{ fontWeight: 700, color: 'var(--as-status-error)' }}>−{fmtFull(totalExpenses + totalDebtPayments)}</td>
+                <td className="amount" style={{ fontWeight: 700, color: totalPaidOutflow > 0.005 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)' }}>{fmtFull(totalPaidOutflow)}</td>
+                <td className="amount" style={{ fontWeight: 700, color: totalUnpaidOutflow > 0.005 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)' }}>{fmtFull(totalUnpaidOutflow)}</td>
+                <td className="amount" style={{ fontWeight: 700, color: (totalExpenses + totalDebtPayments) > 0.005 ? 'var(--as-status-error)' : 'var(--as-text-tertiary)' }}>
+                  {(totalExpenses + totalDebtPayments) > 0.005 ? `−${fmtFull(totalExpenses + totalDebtPayments)}` : fmtFull(0)}
+                </td>
                 <td className="amount" style={{ fontWeight: 700 }}>{totalIncome > 0 ? (((totalExpenses + totalDebtPayments) / totalIncome) * 100).toFixed(1) : '0.0'}%</td>
                 <td />
-                <td className="amount" style={{ fontSize: '0.96rem', fontWeight: 700, color: endBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>{fmtFull(endBalance)}</td>
+                <td className="amount" style={{ fontSize: '0.92rem', fontWeight: 700, color: Math.abs(endBalance) < 0.005 ? 'var(--as-text-tertiary)' : endBalance > 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>{fmtFull(endBalance)}</td>
               </tr>
-            </tbody>
+            </tfoot>
           </table>
-        </div>
       </div>
     </div>
   );

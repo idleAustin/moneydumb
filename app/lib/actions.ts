@@ -482,13 +482,9 @@ export async function createInbound(formData: FormData): Promise<void> {
   redirect(`/dashboard/banks/${bankId}`);
 }
 
-export async function deleteInbound(formData: FormData): Promise<void> {
+export async function deleteInbound(id: string, bankId: string): Promise<void> {
   const userId = await getAuthUserId();
-  if (!userId) return;
-
-  const id = formData.get('id') as string;
-  const bankId = formData.get('bankId') as string;
-  if (!id) return;
+  if (!userId || !id) return;
 
   try {
     await sql`
@@ -501,7 +497,6 @@ export async function deleteInbound(formData: FormData): Promise<void> {
 
   if (bankId) {
     revalidatePath(`/dashboard/banks/${bankId}`);
-    redirect(`/dashboard/banks/${bankId}`);
   }
 }
 

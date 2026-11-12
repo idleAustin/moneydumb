@@ -4,9 +4,10 @@ import {
   Tags,
   Tag,
   ArrowLeft,
-  Trash2,
   Folder,
+  Plus,
 } from 'lucide-react';
+import DeleteButton from '@/app/dashboard/components/DeleteButton';
 import { getAuthUserId } from '@/app/lib/auth';
 import {
   getExpenseTypes,
@@ -29,47 +30,29 @@ export default async function ManageExpenseCategories() {
     redirect('/dashboard/types');
   }
 
-  async function deleteTypeAction(formData: FormData) {
-    'use server';
-    const id = formData.get('id') as string;
-    await deleteExpenseType(id);
-    redirect('/dashboard/types');
-  }
-
   return (
     <div className="fade-in">
-      <div
-        className="page-header"
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-        }}
-      >
+      <div className="page-header">
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center' }}>
+          <h2>
             <Tags
               size={20}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
             />
             <span>Expense Categories</span>
           </h2>
           <p>Organize recurring bills, one-off expenses, and monthly budget envelopes by category.</p>
         </div>
 
-        <Link
-          href="/dashboard/expenses"
-          className="btn btn-secondary"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-          <span>Back to Expenses</span>
-        </Link>
+        <div className="page-header-actions">
+          <Link href="/dashboard/expenses" className="btn btn-secondary">
+            <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Back to Expenses</span>
+          </Link>
+        </div>
       </div>
 
       <div className="card section">
@@ -95,8 +78,9 @@ export default async function ManageExpenseCategories() {
                 placeholder="e.g. Housing, Groceries, Utilities"
               />
             </div>
-            <button type="submit" className="btn btn-primary">
-              + Add Category
+            <button type="submit" className="btn btn-primary btn-form">
+              <Plus size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Add Category</span>
             </button>
           </div>
         </form>
@@ -128,54 +112,43 @@ export default async function ManageExpenseCategories() {
             <p>Add categories above to classify recurring bills and monthly spending.</p>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Category</th>
-                    <th scope="col" style={{ width: 96, textAlign: 'right' }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Category</th>
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {types.map((type: ExpenseType) => (
+                  <tr key={type.id}>
+                    <td style={{ fontWeight: 600 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <Tag
+                          size={15}
+                          strokeWidth={2.0}
+                          aria-hidden="true"
+                          focusable="false"
+                          style={{ color: 'var(--as-text-secondary)', flexShrink: 0 }}
+                        />
+                        <span>{type.name}</span>
+                      </span>
+                    </td>
+                    <td className="col-actions">
+                      <div className="row-actions-group">
+                        <DeleteButton
+                          onDelete={deleteExpenseType.bind(null, type.id)}
+                          ariaLabel={`Delete category ${type.name}`}
+                        />
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {types.map((type: ExpenseType) => (
-                    <tr key={type.id}>
-                      <td style={{ fontWeight: 600 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          <Tag
-                            size={15}
-                            strokeWidth={2.0}
-                            aria-hidden="true"
-                            focusable="false"
-                            style={{ color: 'var(--as-text-secondary)', flexShrink: 0 }}
-                          />
-                          <span>{type.name}</span>
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <form action={deleteTypeAction} style={{ display: 'inline' }}>
-                          <input type="hidden" name="id" value={type.id} />
-                          <button
-                            type="submit"
-                            className="btn btn-danger btn-small"
-                            aria-label={`Delete category ${type.name}`}
-                          >
-                            <Trash2
-                              size={14}
-                              strokeWidth={2.0}
-                              aria-hidden="true"
-                              focusable="false"
-                            />
-                          </button>
-                        </form>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

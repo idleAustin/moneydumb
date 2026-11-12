@@ -28,7 +28,7 @@ export function FixedBillRow({
   setInspectedObligationId,
 }: BillRowProps) {
   const [editing, setEditing] = useState(false);
-  const [editVal, setEditVal] = useState(String(ob.amount));
+  const [editVal, setEditVal] = useState(Number(ob.amount || 0).toFixed(2));
   const escapingRef = useRef(false);
   const committedRef = useRef(false);
 
@@ -190,7 +190,7 @@ export function FixedBillRow({
             onClick={() => {
               escapingRef.current = false;
               committedRef.current = false;
-              setEditVal(String(ob.amount));
+              setEditVal(Number(ob.amount || 0).toFixed(2));
               setEditing(true);
             }}
             aria-label={`Edit amount for ${ob.name}`}
@@ -239,7 +239,7 @@ export function DebtObligationRow({
   setInspectedObligationId,
 }: DebtRowProps) {
   const [editing, setEditing] = useState(false);
-  const [editVal, setEditVal] = useState(String(ob.amount));
+  const [editVal, setEditVal] = useState(Number(ob.amount || 0).toFixed(2));
   const escapingRef = useRef(false);
   const committedRef = useRef(false);
 
@@ -433,7 +433,7 @@ export function DebtObligationRow({
             onClick={() => {
               escapingRef.current = false;
               committedRef.current = false;
-              setEditVal(String(ob.amount));
+              setEditVal(Number(ob.amount || 0).toFixed(2));
               setEditing(true);
             }}
             aria-label={`Edit amount for ${ob.name}`}

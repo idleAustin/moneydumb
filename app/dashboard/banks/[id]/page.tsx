@@ -4,9 +4,10 @@ import {
   Landmark,
   ArrowLeft,
   ArrowDownLeft,
-  Trash2,
   AlertCircle,
+  Plus,
 } from 'lucide-react';
+import DeleteButton from '@/app/dashboard/components/DeleteButton';
 import { getAuthUserId } from '@/app/lib/auth';
 import {
   getBankById,
@@ -55,15 +56,27 @@ export default async function BankDetail({
   if (!bank) {
     return (
       <div className="fade-in">
-        <div style={{ marginBottom: 16 }}>
-          <Link
-            href="/dashboard/banks"
-            className="btn btn-secondary btn-small"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <ArrowLeft size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-            <span>Back to Banks</span>
-          </Link>
+        <div className="page-header">
+          <div>
+            <h2>
+              <Landmark
+                size={20}
+                strokeWidth={2.0}
+                aria-hidden="true"
+                focusable="false"
+                style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+              />
+              <span>Bank Account</span>
+            </h2>
+            <p>Reconcile current balance and schedule expected inbound deposits for this account.</p>
+          </div>
+
+          <div className="page-header-actions">
+            <Link href="/dashboard/banks" className="btn btn-secondary">
+              <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+              <span>Back to Banks</span>
+            </Link>
+          </div>
         </div>
         <div className="card">
           <div className="empty-state">
@@ -93,68 +106,79 @@ export default async function BankDetail({
 
   return (
     <div className="fade-in">
-      <div style={{ marginBottom: 12 }}>
-        <Link
-          href="/dashboard/banks"
-          className="btn btn-secondary btn-small"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-        >
-          <ArrowLeft size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-          <span>Back to Banks</span>
-        </Link>
-      </div>
-
       <div className="page-header">
-        <h2 style={{ display: 'flex', alignItems: 'center' }}>
-          <Landmark
-            size={20}
-            strokeWidth={2.0}
-            aria-hidden="true"
-            focusable="false"
-            style={{ marginRight: 8, color: 'var(--as-accent-primary)' }}
-          />
-          <span>{bank.name}</span>
-        </h2>
-        <p>Reconcile current balance and schedule expected inbound deposits for this account.</p>
+        <div>
+          <h2>
+            <Landmark
+              size={20}
+              strokeWidth={2.0}
+              aria-hidden="true"
+              focusable="false"
+              style={{ color: 'var(--as-accent-primary)', flexShrink: 0 }}
+            />
+            <span>{bank.name}</span>
+          </h2>
+          <p>Reconcile current balance and schedule expected inbound deposits for this account.</p>
+        </div>
+
+        <div className="page-header-actions">
+          <Link href="/dashboard/banks" className="btn btn-secondary">
+            <ArrowLeft size={15} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            <span>Back to Banks</span>
+          </Link>
+        </div>
       </div>
 
       <div className="card-grid-3 section">
-        <div className={`stat-card ${actual < 0 ? 'stat-red' : 'stat-blue'}`}>
+        <div
+          className={`stat-card ${
+            actual < -0.005
+              ? 'stat-red'
+              : Math.abs(actual) < 0.005
+              ? 'stat-zero'
+              : ''
+          }`}
+        >
           <div className="stat-label">Current Balance</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              ...(actual < 0 ? { color: 'var(--as-status-error)' } : {}),
             }}
           >
             {fmtCurrency(actual)}
           </div>
         </div>
 
-        <div className={`stat-card ${pending > 0 ? 'stat-amber' : 'stat-green'}`}>
+        <div className={`stat-card ${pending > 0.005 ? 'stat-amber' : 'stat-zero'}`}>
           <div className="stat-label">Pending Obligations</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              ...(pending > 0 ? { color: 'var(--as-status-error)' } : {}),
             }}
           >
-            {pending > 0 ? fmtCurrency(-pending) : fmtCurrency(0)}
+            {pending > 0.005 ? fmtCurrency(-pending) : fmtCurrency(0)}
           </div>
         </div>
 
-        <div className={`stat-card ${safe < 0 ? 'stat-red' : 'stat-green'}`}>
+        <div
+          className={`stat-card ${
+            safe < -0.005
+              ? 'stat-red'
+              : safe > 0.005
+              ? 'stat-green'
+              : 'stat-zero'
+          }`}
+        >
           <div className="stat-label">Safe Available</div>
           <div
             className="stat-value"
             style={{
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              color: safe < 0 ? 'var(--as-status-error)' : 'var(--as-status-success)',
             }}
           >
             {fmtCurrency(safe)}
@@ -162,14 +186,7 @@ export default async function BankDetail({
         </div>
       </div>
 
-      <div
-        className="section"
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-          gap: 16,
-        }}
-      >
+      <div className="card-grid-2 section">
         {/* Update Current Balance */}
         <div className="card">
           <div className="card-header">
@@ -179,15 +196,21 @@ export default async function BankDetail({
             <input type="hidden" name="bankId" value={bank.id} />
             <div className="form-group">
               <label htmlFor="update-bank-balance">Actual Bank Balance</label>
-              <input
-                id="update-bank-balance"
-                name="balance"
-                type="number"
-                step="0.01"
-                required
-                defaultValue={actual.toFixed(2)}
-                style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}
-              />
+              <div className="input-unit-wrap">
+                <span className="input-unit-left" aria-hidden="true">
+                  $
+                </span>
+                <input
+                  id="update-bank-balance"
+                  name="balance"
+                  type="number"
+                  step="0.01"
+                  required
+                  className="has-unit-left"
+                  defaultValue={actual.toFixed(2)}
+                  style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}
+                />
+              </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" className="btn btn-secondary">
@@ -211,14 +234,20 @@ export default async function BankDetail({
               </div>
               <div className="form-group">
                 <label htmlFor="inbound-amount">Amount</label>
-                <input
-                  id="inbound-amount"
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="0.00"
-                />
+                <div className="input-unit-wrap">
+                  <span className="input-unit-left" aria-hidden="true">
+                    $
+                  </span>
+                  <input
+                    id="inbound-amount"
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    required
+                    className="has-unit-left"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
             </div>
             <div className="form-group">
@@ -233,7 +262,8 @@ export default async function BankDetail({
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
               <button type="submit" className="btn btn-primary">
-                + Log Inbound
+                <Plus size={14} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+                <span>Log Inbound</span>
               </button>
             </div>
           </form>
@@ -243,13 +273,13 @@ export default async function BankDetail({
       {/* Inbound Transactions Table */}
       <div className="card section">
         <div className="card-header">
-          <h3 style={{ display: 'flex', alignItems: 'center' }}>
+          <h3>
             <ArrowDownLeft
               size={17}
               strokeWidth={2.0}
               aria-hidden="true"
               focusable="false"
-              style={{ marginRight: 6, color: 'var(--as-status-success)' }}
+              style={{ color: 'var(--as-status-success)', flexShrink: 0 }}
             />
             <span>Scheduled Inbound Deposits</span>
           </h3>
@@ -267,75 +297,57 @@ export default async function BankDetail({
             <p>Log expected paychecks or transfers above to track incoming funds for {bank.name}.</p>
           </div>
         ) : (
-          <div className="scroll-table-wrapper">
-            <div className="scroll-table-inner">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Date</th>
-                    <th scope="col">Note</th>
-                    <th scope="col" style={{ textAlign: 'right' }}>
-                      Amount
-                    </th>
-                    <th scope="col" style={{ width: 84, textAlign: 'right' }}>
-                      <span className="sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inbounds.map((inbound: InboundTransaction) => {
-                    const amt = Number(inbound.amount);
-                    const dateLabel = fmtIsoDate(inbound.date);
-                    return (
-                      <tr key={inbound.id}>
-                        <td
-                          style={{
-                            fontFamily: 'var(--as-font-mono)',
-                            fontVariantNumeric: 'tabular-nums',
-                            color: 'var(--as-text-secondary)',
-                            fontSize: '0.8125rem',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {dateLabel}
-                        </td>
-                        <td>{inbound.note || '—'}</td>
-                        <td
-                          className="amount"
-                          style={{
-                            fontFamily: 'var(--as-font-mono)',
-                            fontVariantNumeric: 'tabular-nums',
-                            fontWeight: 600,
-                            color:
-                              amt < 0 ? 'var(--as-status-error)' : 'var(--as-status-success)',
-                          }}
-                        >
-                          {amt > 0 ? `+${fmtCurrency(amt)}` : fmtCurrency(amt)}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <form action={deleteInbound} style={{ display: 'inline' }}>
-                            <input type="hidden" name="id" value={inbound.id} />
-                            <input type="hidden" name="bankId" value={bank.id} />
-                            <button
-                              type="submit"
-                              className="btn btn-danger btn-small"
-                              aria-label={`Delete inbound deposit ${inbound.note || dateLabel}`}
-                            >
-                              <Trash2
-                                size={14}
-                                strokeWidth={2.0}
-                                aria-hidden="true"
-                                focusable="false"
-                              />
-                            </button>
-                          </form>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col">Note</th>
+                  <th scope="col" style={{ textAlign: 'right' }}>
+                    Amount
+                  </th>
+                  <th scope="col" className="col-actions">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {inbounds.map((inbound: InboundTransaction) => {
+                  const amt = Number(inbound.amount);
+                  const dateLabel = fmtIsoDate(inbound.date);
+                  return (
+                    <tr key={inbound.id}>
+                      <td className="cell-date">{dateLabel}</td>
+                      <td>{inbound.note || '—'}</td>
+                      <td
+                        className="amount"
+                        style={{
+                          fontFamily: 'var(--as-font-mono)',
+                          fontVariantNumeric: 'tabular-nums',
+                          fontWeight: 600,
+                          color:
+                            amt < -0.005
+                              ? 'var(--as-status-error)'
+                              : amt > 0.005
+                              ? 'var(--as-status-success)'
+                              : 'var(--as-text-tertiary)',
+                        }}
+                      >
+                        {amt > 0.005 ? `+${fmtCurrency(amt)}` : fmtCurrency(amt)}
+                      </td>
+                      <td className="col-actions">
+                        <div className="row-actions-group">
+                          <DeleteButton
+                            onDelete={deleteInbound.bind(null, inbound.id, bank.id)}
+                            ariaLabel={`Delete inbound deposit ${inbound.note || dateLabel}`}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
