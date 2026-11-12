@@ -54,79 +54,88 @@ export function FixedBillRow({
         </button>
       </div>
 
-      <div className="tm-bill-cell-name" style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+      <div
+        className="tm-bill-cell-name"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
         <span
           className={ob.isPaid ? 'tm-strikethrough' : ''}
           style={{
-            fontSize: '0.79rem',
+            fontSize: '0.8rem',
             fontWeight: 600,
             color: ob.isPaid ? 'var(--as-text-tertiary)' : 'var(--as-text-primary)',
             textDecoration: ob.isPaid ? 'line-through' : 'none',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
+            minWidth: 0,
           }}
         >
           {ob.name}
         </span>
-        {ob.url && (
-          <a
-            href={ob.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`Open payment portal for ${ob.name}`}
+        <div className="tm-row-actions">
+          {ob.url && (
+            <a
+              href={ob.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open payment portal for ${ob.name}`}
+              title={`Open payment portal for ${ob.name}`}
+              className="tm-row-icon-btn"
+              style={{ color: 'var(--as-status-warning)' }}
+            >
+              <ExternalLink size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => setInspectedObligationId(ob.id)}
+            aria-label={`Inspect ${ob.name} in command drawer`}
+            title={`Configure ${ob.name}`}
             className="tm-row-icon-btn"
-            style={{ color: 'var(--as-status-warning)' }}
           >
-            <ExternalLink size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-          </a>
-        )}
-        {!ob.isPaid && ob.urgency === 'overdue' && (
-          <span
-            style={{
-              fontSize: '0.6875rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.03em',
-              padding: '1px 6px',
-              borderRadius: 'var(--as-radius-sm)',
-              background: 'var(--as-status-error-bg)',
-              border: '1px solid var(--as-status-error)',
-              color: 'var(--as-status-error)',
-              flexShrink: 0,
-            }}
-          >
-            OVERDUE
-          </span>
-        )}
-        <button
-          type="button"
-          onClick={() => setInspectedObligationId(ob.id)}
-          aria-label={`Inspect ${ob.name} in command drawer`}
-          className="tm-row-icon-btn"
-        >
-          <Sliders size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-        </button>
+            <Sliders size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
+          </button>
+        </div>
       </div>
 
       <div
         className="tm-bill-cell-due"
         style={{
-          fontFamily: 'var(--as-font-mono)',
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          color:
-            ob.isPaid
-              ? 'var(--as-text-tertiary)'
-              : ob.urgency === 'overdue'
-              ? 'var(--as-status-error)'
-              : ob.urgency === 'due_soon'
-              ? 'var(--as-status-warning)'
-              : 'var(--as-text-secondary)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          minWidth: 0,
         }}
       >
-        {ob.dueLabel}
+        <span
+          style={{
+            fontFamily: 'var(--as-font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            flexShrink: 0,
+            color:
+              ob.isPaid
+                ? 'var(--as-text-tertiary)'
+                : ob.urgency === 'overdue'
+                ? 'var(--as-status-error)'
+                : ob.urgency === 'due_soon'
+                ? 'var(--as-status-warning)'
+                : 'var(--as-text-secondary)',
+          }}
+        >
+          {ob.dueLabel}
+        </span>
+        {!ob.isPaid && ob.urgency === 'overdue' && (
+          <span className="tm-due-badge-overdue">OVERDUE</span>
+        )}
       </div>
 
       <div className="tm-bill-cell-acct">
@@ -197,8 +206,9 @@ export function FixedBillRow({
               textDecoration: ob.isPaid ? 'line-through' : 'none',
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              fontSize: '0.79rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
+              marginRight: -6,
             }}
           >
             {fmtFull(ob.amount)}
@@ -255,83 +265,101 @@ export function DebtObligationRow({
         </button>
       </div>
 
-      <div className="tm-debt-cell-name" style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
-          <span
+      <div
+        className="tm-debt-cell-name"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          minWidth: 0,
+        }}
+      >
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div
             className={ob.isPaid ? 'tm-strikethrough' : ''}
             style={{
-              fontSize: '0.78rem',
+              fontSize: '0.8rem',
               fontWeight: 600,
               color: ob.isPaid ? 'var(--as-text-tertiary)' : 'var(--as-text-primary)',
               textDecoration: ob.isPaid ? 'line-through' : 'none',
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
+              lineHeight: 1.3,
             }}
           >
             {ob.name}
-          </span>
+          </div>
+          <div
+            style={{
+              fontSize: '0.6875rem',
+              color: 'var(--as-text-tertiary)',
+              fontFamily: 'var(--as-font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              marginTop: 2,
+              lineHeight: 1.25,
+            }}
+          >
+            Bal {fmtFull(ob.debtBalance || 0)} • {Number(ob.interestRate || 0).toFixed(2)}% APR
+          </div>
+        </div>
+
+        <div className="tm-row-actions">
           {ob.url && (
             <a
               href={ob.url}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Open payment portal for ${ob.name}`}
+              title={`Open payment portal for ${ob.name}`}
               className="tm-row-icon-btn"
               style={{ color: 'var(--as-status-warning)' }}
             >
               <ExternalLink size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
             </a>
           )}
-          {!ob.isPaid && ob.urgency === 'overdue' && (
-            <span
-              style={{
-                fontSize: '0.6875rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                padding: '1px 6px',
-                borderRadius: 'var(--as-radius-sm)',
-                background: 'var(--as-status-error-bg)',
-                border: '1px solid var(--as-status-error)',
-                color: 'var(--as-status-error)',
-                flexShrink: 0,
-              }}
-            >
-              OVERDUE
-            </span>
-          )}
           <button
             type="button"
             onClick={() => setInspectedObligationId(ob.id)}
             aria-label={`Inspect ${ob.name} in command drawer`}
+            title={`Configure ${ob.name}`}
             className="tm-row-icon-btn"
           >
             <Sliders size={12} strokeWidth={2.0} aria-hidden="true" focusable="false" />
           </button>
         </div>
-        <div style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)', fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums' }}>
-          Bal {fmtFull(ob.debtBalance || 0)} • {ob.interestRate}% APR
-        </div>
       </div>
 
-      <div
-        className="tm-debt-cell-due"
-        style={{
-          fontFamily: 'var(--as-font-mono)',
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: '0.72rem',
-          fontWeight: 600,
-          color: ob.isPaid
-            ? 'var(--as-text-tertiary)'
-            : ob.urgency === 'overdue'
-            ? 'var(--as-status-error)'
-            : ob.urgency === 'due_soon'
-            ? 'var(--as-status-warning)'
-            : 'var(--as-text-secondary)',
-        }}
-      >
-        {ob.dueLabel}
+      <div className="tm-debt-cell-due">
+        <span
+          style={{
+            fontFamily: 'var(--as-font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            lineHeight: 1.3,
+            color: ob.isPaid
+              ? 'var(--as-text-tertiary)'
+              : ob.urgency === 'overdue'
+              ? 'var(--as-status-error)'
+              : ob.urgency === 'due_soon'
+              ? 'var(--as-status-warning)'
+              : 'var(--as-text-secondary)',
+          }}
+        >
+          {ob.dueLabel}
+        </span>
+        {!ob.isPaid && ob.urgency === 'overdue' ? (
+          <span className="tm-due-badge-overdue">OVERDUE</span>
+        ) : (
+          <span className="tm-due-subtext">
+            {ob.isPaid ? 'Cleared' : ob.urgency === 'due_soon' ? 'Due soon' : 'Scheduled'}
+          </span>
+        )}
       </div>
 
       <div className="tm-debt-cell-acct">
@@ -421,10 +449,11 @@ export function DebtObligationRow({
               textDecoration: ob.isPaid ? 'line-through' : 'none',
               fontFamily: 'var(--as-font-mono)',
               fontVariantNumeric: 'tabular-nums',
-              fontSize: '0.79rem',
+              fontSize: '0.8rem',
               fontWeight: 700,
               minWidth: 68,
               textAlign: 'right',
+              marginRight: -6,
             }}
           >
             {fmtFull(ob.amount)}

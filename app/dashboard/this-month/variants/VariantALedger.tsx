@@ -258,7 +258,7 @@ export default function VariantALedger({
         {/* Left Column: Fixed Recurring Bills Grouped by Category */}
         <div style={{ background: 'var(--as-bg-surface)', border: '1px solid var(--as-border-subtle)', borderRadius: 'var(--as-radius-lg)', overflow: 'hidden' }}>
           <div className="tm-bill-grid-header">
-            <div>PAID</div>
+            <div style={{ textAlign: 'center' }}>PAID</div>
             <div>CATEGORY / EXPENSE</div>
             <div>DUE</div>
             <div>ACCOUNT</div>
@@ -410,7 +410,7 @@ export default function VariantALedger({
           </div>
 
           <div className="tm-debt-grid-header">
-            <div>PAID</div>
+            <div style={{ textAlign: 'center' }}>PAID</div>
             <div>CREDITOR / APR</div>
             <div>DUE</div>
             <div>ACCOUNT</div>

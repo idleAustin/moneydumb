@@ -45,13 +45,21 @@
 }
 
 /* Compact row action buttons (portal external link & drawer inspector) */
+.tm-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 .tm-row-icon-btn {
-  min-width: 28px;
-  min-height: 28px;
-  padding: 4px;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
   border-radius: var(--as-radius-sm);
-  background: transparent;
-  border: 1px solid transparent;
+  background: var(--as-bg-elevated);
+  border: 1px solid var(--as-border-subtle);
   color: var(--as-text-tertiary);
   cursor: pointer;
   display: inline-flex;
@@ -67,11 +75,35 @@
 .tm-row-icon-btn:hover {
   background: var(--as-bg-overlay);
   color: var(--as-text-primary);
-  border-color: var(--as-border-subtle);
+  border-color: var(--as-border-strong);
 }
 .tm-row-icon-btn:focus-visible {
   outline: 2px solid var(--as-border-focus);
   outline-offset: 2px;
+}
+.tm-due-badge-overdue {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 1px 5px;
+  border-radius: var(--as-radius-sm);
+  background: var(--as-status-error-bg);
+  border: 1px solid color-mix(in srgb, var(--as-status-error) 45%, transparent);
+  color: var(--as-status-error);
+  font-family: var(--as-font-body);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.tm-due-subtext {
+  font-family: var(--as-font-body);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--as-text-tertiary);
+  line-height: 1.25;
 }
 
 /* Editable amount & inputs */
@@ -119,10 +151,13 @@
 
 /* Account select dropdown */
 .tm-acct-select {
-  padding: 4px 8px;
+  width: 100%;
+  max-width: 100%;
+  height: 28px;
+  padding: 0 8px;
   background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
-  border-radius: var(--as-radius-md);
+  border-radius: var(--as-radius-sm);
   color: var(--as-text-secondary);
   font-family: var(--as-font-body);
   font-size: 0.72rem;
@@ -132,7 +167,6 @@
     border-color var(--as-duration-normal) var(--as-ease-snap),
     color var(--as-duration-normal) var(--as-ease-snap);
   flex-shrink: 0;
-  max-width: 118px;
 }
 .tm-acct-select:focus-visible {
   outline: 2px solid var(--as-border-focus);
@@ -146,13 +180,17 @@
 /* Payment tier pills */
 .tm-pay-tier {
   display: flex;
-  gap: 2px;
+  align-items: stretch;
+  height: 26px;
+  gap: 1px;
   overflow: hidden;
+  background: var(--as-bg-base);
   border: 1px solid var(--as-border-subtle);
-  border-radius: var(--as-radius-md);
+  border-radius: var(--as-radius-sm);
+  flex-shrink: 0;
 }
 .tm-tier-btn {
-  padding: 3px 8px;
+  padding: 0 7px;
   font-size: 0.6875rem;
   font-weight: 600;
   background: transparent;
@@ -341,7 +379,7 @@
 }
 .tm-ledger-split {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
+  grid-template-columns: 1fr 1.12fr;
   gap: 14px;
   align-items: start;
 }
@@ -355,9 +393,9 @@
 }
 .tm-bill-grid-header {
   display: grid;
-  grid-template-columns: 36px 2.1fr 0.8fr 1.3fr 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) 118px 132px 86px;
   align-items: center;
-  padding: 7px 14px;
+  padding: 8px 14px;
   background: var(--as-bg-base);
   font-size: 0.6875rem;
   text-transform: uppercase;
@@ -365,30 +403,30 @@
   font-weight: 700;
   color: var(--as-text-tertiary);
   border-bottom: 1px solid var(--as-border-subtle);
-  gap: 8px;
+  column-gap: 10px;
 }
 .tm-bill-cat-row {
   display: grid;
-  grid-template-columns: 36px 2.1fr 0.8fr 1.3fr 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) 118px 132px 86px;
   align-items: center;
-  padding: 7px 14px;
+  padding: 8px 14px;
   background: var(--as-bg-elevated);
   border-bottom: 1px solid var(--as-border-subtle);
-  gap: 8px;
+  column-gap: 10px;
 }
 .tm-bill-row {
   display: grid;
-  grid-template-columns: 36px 2.1fr 0.8fr 1.3fr 1fr;
+  grid-template-columns: 32px minmax(0, 1fr) 118px 132px 86px;
   align-items: center;
-  padding: 6px 14px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--as-border-subtle);
-  gap: 8px;
+  column-gap: 10px;
 }
 .tm-debt-grid-header {
   display: grid;
-  grid-template-columns: 36px 1.8fr 0.75fr 1.2fr 1.75fr;
+  grid-template-columns: 32px minmax(0, 1fr) 78px 128px 206px;
   align-items: center;
-  padding: 7px 14px;
+  padding: 8px 14px;
   background: var(--as-bg-base);
   font-size: 0.6875rem;
   text-transform: uppercase;
@@ -396,15 +434,21 @@
   font-weight: 700;
   color: var(--as-text-tertiary);
   border-bottom: 1px solid var(--as-border-subtle);
-  gap: 8px;
+  column-gap: 10px;
 }
 .tm-debt-row {
   display: grid;
-  grid-template-columns: 36px 1.8fr 0.75fr 1.2fr 1.75fr;
+  grid-template-columns: 32px minmax(0, 1fr) 78px 128px 206px;
   align-items: center;
-  padding: 7px 14px;
+  padding: 9px 14px;
   border-bottom: 1px solid var(--as-border-subtle);
-  gap: 8px;
+  column-gap: 10px;
+}
+.tm-debt-cell-due {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 /* 4. Workspace Header, Mode Switcher, Toast, Drawer & Inbound Modal */
@@ -711,6 +755,15 @@
 
 /* ========== RESPONSIVE BREAKPOINTS ========== */
 
+@media (max-width: 1240px) {
+  .tm-ledger-split {
+    grid-template-columns: 1fr;
+  }
+  .tm-debts-panel {
+    position: static;
+  }
+}
+
 @media (max-width: 1024px) {
   .tm-top-burn-grid {
     grid-template-columns: 1fr 1fr;
@@ -807,7 +860,12 @@
     min-width: 44px;
     min-height: 44px;
   }
-  .tm-row-icon-btn,
+  .tm-row-icon-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
   .tm-touch-btn {
     min-width: 44px;
     min-height: 44px;
@@ -885,7 +943,7 @@
   }
   .tm-debt-cell-check { grid-column: 1; grid-row: 1; }
   .tm-debt-cell-name { grid-column: 2 / 4; grid-row: 1; }
-  .tm-debt-cell-due { grid-column: 4; grid-row: 1; text-align: right; }
+  .tm-debt-cell-due { grid-column: 4; grid-row: 1; text-align: right; align-items: flex-end; }
   .tm-debt-cell-acct { grid-column: 2; grid-row: 2; }
   .tm-debt-cell-tier { grid-column: 3 / 5; grid-row: 2; flex-wrap: wrap; }
   .tm-modal-backdrop {
