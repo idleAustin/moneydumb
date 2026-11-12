@@ -450,7 +450,7 @@
 }
 .tm-modal-dialog {
   width: 100%;
-  max-width: 740px;
+  max-width: 780px;
   max-height: 88dvh;
   overflow-y: auto;
   background: var(--as-bg-surface);
@@ -486,46 +486,189 @@
   grid-template-columns: 1fr 1fr;
   gap: 6px;
 }
+.tm-inbound-bank-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: 8px;
+}
+.tm-inbound-bank-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 12px;
+  background: var(--as-bg-surface);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-md);
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  transition:
+    background-color var(--as-duration-normal) var(--as-ease-snap),
+    border-color var(--as-duration-normal) var(--as-ease-snap);
+}
+.tm-inbound-bank-tab:hover {
+  background: var(--as-bg-elevated);
+  border-color: var(--as-border-strong);
+}
+.tm-inbound-bank-tab:focus-visible {
+  outline: 2px solid var(--as-border-focus);
+  outline-offset: 2px;
+}
+.tm-inbound-bank-tab-active {
+  background: var(--as-accent-muted);
+  border-color: var(--as-accent-primary);
+}
+.tm-inbound-bank-tab-active:hover {
+  background: var(--as-accent-muted);
+  border-color: var(--as-accent-primary);
+}
 .tm-inbound-summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--as-border-subtle);
   background: var(--as-bg-surface);
 }
+.tm-inbound-table-wrap {
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-md);
+  overflow: hidden;
+  background: var(--as-bg-elevated);
+}
 .tm-inbound-row-header {
   display: grid;
-  grid-template-columns: 56px 1.8fr 1.3fr 1.2fr 1.8fr;
+  grid-template-columns: 44px minmax(145px, 1.45fr) 138px 118px minmax(190px, 1.75fr);
+  column-gap: 12px;
+  align-items: center;
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--as-text-tertiary);
-  padding: 0 10px 4px;
+  padding: 9px 14px;
+  background: var(--as-bg-base);
+  border-bottom: 1px solid var(--as-border-subtle);
 }
 .tm-inbound-row-header-scoped {
-  grid-template-columns: 56px 1.6fr 1.2fr 1.1fr 1.1fr 1.1fr;
+  grid-template-columns: 44px minmax(140px, 1.55fr) 138px 118px 96px 104px;
 }
 .tm-inbound-row {
   display: grid;
-  grid-template-columns: 56px 1.8fr 1.3fr 1.2fr 1.8fr;
+  grid-template-columns: 44px minmax(145px, 1.45fr) 138px 118px minmax(190px, 1.75fr);
+  column-gap: 12px;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   background: var(--as-bg-elevated);
-  border-radius: var(--as-radius-md);
+  border-bottom: 1px solid var(--as-border-subtle);
+  transition: background-color var(--as-duration-fast) var(--as-ease-snap);
 }
 .tm-inbound-row-scoped {
-  grid-template-columns: 56px 1.6fr 1.2fr 1.1fr 1.1fr 1.1fr;
+  grid-template-columns: 44px minmax(140px, 1.55fr) 138px 118px 96px 104px;
+}
+.tm-inbound-footer {
+  display: grid;
+  grid-template-columns: 44px minmax(145px, 1.45fr) 138px 118px minmax(190px, 1.75fr);
+  column-gap: 12px;
+  align-items: center;
+  padding: 9px 14px;
+  background: var(--as-bg-base);
+  font-family: var(--as-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.tm-inbound-footer-scoped {
+  grid-template-columns: 44px minmax(140px, 1.55fr) 138px 118px 96px 104px;
+}
+.tm-inbound-field-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 .tm-inbound-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--as-bg-base);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-sm);
+  color: var(--as-text-primary);
+  font-family: var(--as-font-mono);
   font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color-scheme: dark;
+  transition: border-color var(--as-duration-normal) var(--as-ease-snap);
+}
+.tm-inbound-input:hover {
+  border-color: var(--as-border-strong);
 }
 .tm-inbound-input:focus-visible {
   outline: 2px solid var(--as-border-focus);
   outline-offset: 2px;
   border-color: var(--as-border-focus);
+}
+.tm-inbound-input::-webkit-inner-spin-button,
+.tm-inbound-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.tm-inbound-unit {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--as-font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--as-text-tertiary);
+  pointer-events: none;
+  user-select: none;
+}
+.tm-inbound-unit-left {
+  left: 8px;
+}
+.tm-inbound-unit-right {
+  right: 8px;
+}
+.tm-inbound-splits-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+.tm-inbound-split-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 3px 8px;
+  background: var(--as-bg-base);
+  border: 1px solid var(--as-border-subtle);
+  border-radius: var(--as-radius-sm);
+  font-family: var(--as-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.72rem;
+  color: var(--as-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--as-duration-normal) var(--as-ease-snap),
+    border-color var(--as-duration-normal) var(--as-ease-snap),
+    color var(--as-duration-normal) var(--as-ease-snap);
+}
+.tm-inbound-split-chip:hover {
+  background: var(--as-bg-overlay);
+  border-color: var(--as-border-strong);
+  color: var(--as-text-primary);
+}
+.tm-inbound-split-chip:focus-visible {
+  outline: 2px solid var(--as-border-focus);
+  outline-offset: 2px;
 }
 
 /* 5. Forecast & Flow Heatmap Grid & Waterfall Expand Button */
@@ -769,6 +912,10 @@
     border-top-left-radius: var(--as-radius-lg);
     border-top-right-radius: var(--as-radius-lg);
   }
+  .tm-inbound-bank-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
   .tm-inbound-summary-grid {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -779,6 +926,15 @@
     grid-template-columns: 44px 1fr;
     gap: 8px 10px;
     padding: 12px;
+  }
+  .tm-inbound-footer,
+  .tm-inbound-footer-scoped {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .tm-inbound-footer-hide-mobile {
+    display: none;
   }
   .tm-inbound-cell-full {
     grid-column: 1 / -1;
