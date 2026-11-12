@@ -96,7 +96,7 @@ export default function TreasuryAndAccountStrip({
               Account Safe Balances
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--as-text-tertiary)' }}>
-              • Click any bank name to filter bills below, or click + Inbound to edit deposit dates
+              • Click a bank to filter bills, or click Opening Bal / + Inbound to edit
             </span>
             {selectedAccountFilter && (
               <button

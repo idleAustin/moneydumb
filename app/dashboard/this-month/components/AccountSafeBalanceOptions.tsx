@@ -78,7 +78,7 @@ export default function AccountSafeBalanceOptions({
           <div role="columnheader">BANK ACCOUNT</div>
           <div role="columnheader">TYPE</div>
           <div role="columnheader" style={{ textAlign: 'right' }}>OPENING BAL</div>
-          <div role="columnheader" style={{ textAlign: 'right' }}>+ INBOUND (EDIT DATES)</div>
+          <div role="columnheader" style={{ textAlign: 'right' }}>+ INBOUND</div>
           <div role="columnheader" style={{ textAlign: 'right' }}>− CLEARED</div>
           <div role="columnheader" style={{ textAlign: 'right' }}>− STILL DUE</div>
           <div role="columnheader" style={{ textAlign: 'right' }}>= SAFE NOW</div>
@@ -141,9 +141,7 @@ export default function AccountSafeBalanceOptions({
                 key={a.id}
                 role="row"
                 className="tm-acct-matrix-row"
-                style={{
-                  background: isSelected ? 'var(--as-accent-muted)' : 'transparent',
-                }}
+                style={isSelected ? { background: 'var(--as-accent-muted)' } : undefined}
               >
                 <div role="cell" className="tm-acct-cell-bank" style={{ minWidth: 0 }}>
                   <button
@@ -157,8 +155,8 @@ export default function AccountSafeBalanceOptions({
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
                       color: isSelected ? 'var(--as-accent-primary)' : 'var(--as-text-primary)',
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -186,12 +184,22 @@ export default function AccountSafeBalanceOptions({
                   <span className="tm-acct-mobile-badge">{a.account_type}</span>
                 </div>
 
-                <div role="cell" className="tm-acct-cell-type" style={{ fontSize: '0.6875rem', color: 'var(--as-text-tertiary)', textTransform: 'uppercase' }}>
+                <div
+                  role="cell"
+                  className="tm-acct-cell-type"
+                  style={{
+                    fontSize: '0.6875rem',
+                    fontWeight: 600,
+                    letterSpacing: '0.04em',
+                    color: 'var(--as-text-tertiary)',
+                    textTransform: 'uppercase',
+                  }}
+                >
                   {a.account_type}
                 </div>
 
                 {/* Inline-editable Opening Balance */}
-                <div role="cell" className="tm-acct-cell" style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.76rem' }}>
+                <div role="cell" className="tm-acct-cell">
                   <span className="tm-mobile-label">OPENING BAL</span>
                   {editingAcctId === a.id ? (
                     <input
@@ -221,7 +229,7 @@ export default function AccountSafeBalanceOptions({
                         }
                       }}
                       autoFocus
-                      style={{ width: 92 }}
+                      style={{ width: 96, fontSize: '0.8125rem', padding: '2px 6px', margin: '-3px 0' }}
                     />
                   ) : (
                     <button
@@ -233,18 +241,21 @@ export default function AccountSafeBalanceOptions({
                         setAcctEditVal(String(a.startingBalance));
                       }}
                       aria-label={`Edit opening balance for ${a.name}`}
-                      className="tm-editable tm-touch-btn"
+                      title={`Click to edit opening balance for ${a.name}`}
+                      className="tm-acct-action-btn tm-touch-btn"
                       style={{
-                        background: 'none',
-                        border: 'none',
                         color: 'var(--as-text-primary)',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
+                        fontWeight: 600,
                       }}
                     >
+                      <Edit3
+                        size={11}
+                        strokeWidth={2.0}
+                        className="tm-acct-action-icon"
+                        aria-hidden="true"
+                        focusable="false"
+                      />
                       <span>{fmtFull(a.startingBalance)}</span>
-                      <Edit3 size={10} strokeWidth={2.0} aria-hidden="true" focusable="false" style={{ color: 'var(--as-text-tertiary)' }} />
                     </button>
                   )}
                 </div>
@@ -254,61 +265,67 @@ export default function AccountSafeBalanceOptions({
                   <span className="tm-mobile-label">+ INBOUND</span>
                   <button
                     type="button"
-                    className="tm-touch-btn"
+                    className="tm-acct-action-btn tm-touch-btn"
                     onClick={() => setInboundModalAccountId(a.id)}
-                    aria-label={`Edit inbound deposits and dates for ${a.name}`}
+                    aria-label={`Edit inbound deposits and dates for ${a.name} (${datesLabel})`}
+                    title={`${datesLabel} · Click to edit deposit dates`}
                     style={{
-                      background: 'var(--as-bg-base)',
-                      border: '1px solid var(--as-border-subtle)',
-                      borderRadius: 'var(--as-radius-sm)',
-                      padding: '4px 8px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      flexDirection: 'column',
-                      alignItems: 'flex-end',
-                      gap: 1,
+                      color: a.incomingTotal > 0 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)',
+                      fontWeight: a.incomingTotal > 0 ? 600 : 500,
                     }}
                   >
-                    <span
-                      style={{
-                        fontFamily: 'var(--as-font-mono)',
-                        fontVariantNumeric: 'tabular-nums',
-                        fontSize: '0.76rem',
-                        fontWeight: 700,
-                        color: 'var(--as-status-success)',
-                      }}
-                    >
-                      +{fmtFull(a.incomingTotal)}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.6875rem',
-                        color: 'var(--as-text-tertiary)',
-                        fontVariantNumeric: 'tabular-nums',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3,
-                      }}
-                    >
-                      <Calendar size={10} strokeWidth={2.0} aria-hidden="true" focusable="false" />
-                      {datesLabel}
-                    </span>
+                    <Calendar
+                      size={11}
+                      strokeWidth={2.0}
+                      className="tm-acct-action-icon"
+                      aria-hidden="true"
+                      focusable="false"
+                    />
+                    <span>+{fmtFull(a.incomingTotal)}</span>
                   </button>
                 </div>
 
-                <div role="cell" className="tm-acct-cell" style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.76rem', color: 'var(--as-text-secondary)' }}>
+                <div
+                  role="cell"
+                  className="tm-acct-cell"
+                  style={{
+                    color: a.paidDeductions > 0 ? 'var(--as-text-secondary)' : 'var(--as-text-tertiary)',
+                    fontWeight: 500,
+                  }}
+                >
                   <span className="tm-mobile-label">− CLEARED</span>
                   −{fmtFull(a.paidDeductions)}
                 </div>
-                <div role="cell" className="tm-acct-cell" style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.76rem', color: 'var(--as-status-warning)' }}>
+                <div
+                  role="cell"
+                  className="tm-acct-cell"
+                  style={{
+                    color: a.pendingDeductions > 0 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)',
+                    fontWeight: a.pendingDeductions > 0 ? 600 : 500,
+                  }}
+                >
                   <span className="tm-mobile-label">− STILL DUE</span>
                   −{fmtFull(a.pendingDeductions)}
                 </div>
-                <div role="cell" className="tm-acct-cell" style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.82rem', fontWeight: 700, color: a.currentSafeBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
+                <div
+                  role="cell"
+                  className="tm-acct-cell"
+                  style={{
+                    fontWeight: 700,
+                    color: a.currentSafeBalance >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)',
+                  }}
+                >
                   <span className="tm-mobile-label">= SAFE NOW</span>
                   {fmtFull(a.currentSafeBalance)}
                 </div>
-                <div role="cell" className="tm-acct-cell" style={{ fontFamily: 'var(--as-font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: '0.8rem', fontWeight: 700, color: a.projectedEndBalance >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)' }}>
+                <div
+                  role="cell"
+                  className="tm-acct-cell"
+                  style={{
+                    fontWeight: 700,
+                    color: a.projectedEndBalance >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)',
+                  }}
+                >
                   <span className="tm-mobile-label">= END BUFFER</span>
                   {fmtFull(a.projectedEndBalance)}
                 </div>
@@ -321,11 +338,23 @@ export default function AccountSafeBalanceOptions({
       {/* Total Summary Footer Row */}
       <div role="rowgroup">
         <div role="row" className="tm-acct-matrix-footer">
-          <div role="cell" className="tm-acct-cell-bank" style={{ fontFamily: 'var(--as-font-body)', fontSize: '0.72rem', color: 'var(--as-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+          <div
+            role="cell"
+            className="tm-acct-cell-bank"
+            style={{
+              fontFamily: 'var(--as-font-body)',
+              fontSize: '0.6875rem',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: 'var(--as-text-secondary)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
             TOTAL VISIBLE ({visibleAccounts.length})
           </div>
           <div role="cell" className="tm-acct-cell-type" />
-          <div role="cell" className="tm-acct-cell">
+          <div role="cell" className="tm-acct-cell" style={{ color: 'var(--as-text-primary)', fontWeight: 700 }}>
             <span className="tm-mobile-label">OPENING BAL</span>
             {fmtFull(sumOpen)}
           </div>
@@ -335,34 +364,64 @@ export default function AccountSafeBalanceOptions({
               type="button"
               onClick={() => setInboundModalAccountId('ALL')}
               aria-label="Edit all inbound deposits and dates"
-              className="tm-editable tm-touch-btn"
+              title="Click to edit all inbound deposit dates and splits"
+              className="tm-acct-action-btn tm-touch-btn"
               style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--as-status-success)',
-                fontFamily: 'var(--as-font-mono)',
-                fontVariantNumeric: 'tabular-nums',
-                fontSize: '0.75rem',
+                color: sumIn > 0 ? 'var(--as-status-success)' : 'var(--as-text-tertiary)',
                 fontWeight: 700,
-                cursor: 'pointer',
               }}
             >
-              +{fmtFull(sumIn)}
+              <Calendar
+                size={11}
+                strokeWidth={2.0}
+                className="tm-acct-action-icon"
+                aria-hidden="true"
+                focusable="false"
+              />
+              <span>+{fmtFull(sumIn)}</span>
             </button>
           </div>
-          <div role="cell" className="tm-acct-cell" style={{ color: 'var(--as-text-secondary)' }}>
+          <div
+            role="cell"
+            className="tm-acct-cell"
+            style={{
+              color: sumPaid > 0 ? 'var(--as-text-secondary)' : 'var(--as-text-tertiary)',
+              fontWeight: 700,
+            }}
+          >
             <span className="tm-mobile-label">− CLEARED</span>
             −{fmtFull(sumPaid)}
           </div>
-          <div role="cell" className="tm-acct-cell" style={{ color: 'var(--as-status-warning)' }}>
+          <div
+            role="cell"
+            className="tm-acct-cell"
+            style={{
+              color: sumDue > 0 ? 'var(--as-status-warning)' : 'var(--as-text-tertiary)',
+              fontWeight: 700,
+            }}
+          >
             <span className="tm-mobile-label">− STILL DUE</span>
             −{fmtFull(sumDue)}
           </div>
-          <div role="cell" className="tm-acct-cell" style={{ color: sumSafe >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)' }}>
+          <div
+            role="cell"
+            className="tm-acct-cell"
+            style={{
+              color: sumSafe >= 0 ? 'var(--as-accent-primary)' : 'var(--as-status-error)',
+              fontWeight: 700,
+            }}
+          >
             <span className="tm-mobile-label">= SAFE NOW</span>
             {fmtFull(sumSafe)}
           </div>
-          <div role="cell" className="tm-acct-cell" style={{ color: sumEnd >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)' }}>
+          <div
+            role="cell"
+            className="tm-acct-cell"
+            style={{
+              color: sumEnd >= 0 ? 'var(--as-text-primary)' : 'var(--as-status-error)',
+              fontWeight: 700,
+            }}
+          >
             <span className="tm-mobile-label">= END BUFFER</span>
             {fmtFull(sumEnd)}
           </div>
